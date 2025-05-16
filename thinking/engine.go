@@ -16,5 +16,7 @@ func main() {
 
 	// Build all variants for all types
 	buildAllNetworks(layers, acts, full)
+	TryToConnect()
+	host()
 
 }

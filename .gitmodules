@@ -1,0 +1,3 @@
+[submodule "primordia"]
+	path = primordia
+	url = https://github.com/OpenFluke/primordia.git

@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./thinking # Path to your app folder with Dockerfile
+    container_name: gofiber-backend
+    ports:
+      - "8123:8123"
+    restart: unless-stopped
+
+  primordia:
+    build:
+      context: ./primordia
+    container_name: primordia-sim
+    # Expose any TCP/UDP ports needed by your simulation for AI comms
+    ports:
+      - "9000:9000" # example: change to match your Primordia's server port
+    restart: unless-stopped
