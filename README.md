@@ -72,3 +72,12 @@ docker-compose up --force-recreate
   ```sh
   sudo usermod -aG docker $USER
   ```
+
+## Running Biofoundry Manually
+
+To run Biofoundry in headless mode with specific port and worker configurations, use the following command:
+
+```bash
+cd primordia/biofoundry
+./BioFoundry.x86_64 --headless -UDPPort=15000 -TCPPort=16000 -TCPWorkers=14000
+```

@@ -3,7 +3,11 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
+	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // TryConnect tests TCP connectivity to host:port with a timeout.
@@ -35,14 +39,31 @@ func TryConnectWithRetries(host string, port int, timeout, waitDelay time.Durati
 }
 
 func TryToConnect() {
-	// Start connection test in a goroutine (background)
+	// Load .env if present (no error if missing)
+	_ = godotenv.Load()
+
 	go func() {
+		// Defaults (for Docker Compose)
 		hostName := "primordia"
 		port := 14000
+
+		// Check environment variables
+		if v := os.Getenv("GAME_HOST"); v != "" {
+			hostName = v
+		}
+		if v := os.Getenv("GAME_PORT"); v != "" {
+			if parsed, err := strconv.Atoi(v); err == nil {
+				port = parsed
+			} else {
+				fmt.Printf("⚠️ GAME_PORT '%s' is not a valid integer, using default %d\n", v, port)
+			}
+		}
+
 		timeout := 2 * time.Second
 		waitDelay := 2 * time.Second
 		maxAttempts := 10
 
+		fmt.Printf("🔎 Will attempt to connect to game at %s:%d\n", hostName, port)
 		if err := TryConnectWithRetries(hostName, port, timeout, waitDelay, maxAttempts); err != nil {
 			fmt.Println("🛑", err)
 		} else {
