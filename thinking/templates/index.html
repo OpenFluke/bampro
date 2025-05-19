@@ -1,0 +1,118 @@
+{{ define "index" }}
+
+<!-- BAMPRO Splash Section -->
+<div class="welcome-wrapper p-6 has-background-dark">
+  <div class="container has-text-centered">
+    <div class="p-6">
+      <h1
+        class="title is-size-1 has-text-white mb-3"
+        style="letter-spacing: 2px"
+      >
+        Welcome to
+      </h1>
+      <div class="columns is-vcentered is-centered is-gapless mb-4">
+        <div class="column is-narrow">
+          <!-- Replace the image source with your BAMPRO logo if you have one -->
+          <figure class="image is-128x128">
+            <img
+              src="/static/images/bampro.png"
+              alt="BAMPRO Logo"
+              style="filter: brightness(1.1)"
+            />
+          </figure>
+        </div>
+        <div class="column is-narrow">
+          <h1
+            class="title is-size-1 has-text-primary"
+            style="position: relative; top: -6px; margin-left: 5px"
+          >
+            BAMPRO
+          </h1>
+        </div>
+      </div>
+      <p class="subtitle is-size-4 has-text-grey-light mb-6">
+        <strong>B</strong>iofoundry <strong>A</strong>nd <strong>M</strong>ARL
+        <strong>P</strong>aragon <strong>R</strong>epo
+        <strong>O</strong>rchestrator
+      </p>
+      <p class="has-text-grey-light mb-5">
+        A fully open, modular research platform for
+        <b>multi-agent reinforcement learning</b>—with live dashboards,
+        type-generic neural networks, and real-time experiment orchestration.
+      </p>
+      <div class="buttons is-centered mb-3">
+        <a href="/run" class="button is-primary is-large">
+          <span class="icon"><i class="fas fa-rocket"></i></span>
+          <span>Enter Dashboard</span>
+        </a>
+        <a
+          href="https://github.com/openfluke/bampro"
+          target="_blank"
+          class="button is-link is-medium"
+        >
+          <span class="icon"><i class="fab fa-github"></i></span>
+          <span>GitHub</span>
+        </a>
+        <a href="/about" class="button is-dark is-medium">
+          <span class="icon"><i class="fas fa-info-circle"></i></span>
+          <span>About</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Platform Overview Section -->
+<div class="container has-text-centered mt-6">
+  <div class="columns is-multiline is-centered">
+    <div class="column is-one-third">
+      <div class="card has-background-grey-dark">
+        <div class="card-content has-text-white">
+          <p class="title is-5 mb-2">
+            <strong style="color: #58a6ff">Paragon AI Framework</strong>
+          </p>
+          <p>
+            Type-generic, modular neural networks for fast research, ablation
+            studies, and distributed learning—open source under Apache 2.0.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="column is-one-third">
+      <div class="card has-background-grey-dark">
+        <div class="card-content has-text-white">
+          <p class="title is-5 mb-2">
+            <strong style="color: #58a6ff">Biofoundry Simulation</strong>
+          </p>
+          <p>
+            Procedurally generated worlds, planet-scale agent testing, and live
+            visual analytics. Watch agents compete, collaborate, and evolve.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="column is-one-third">
+      <div class="card has-background-grey-dark">
+        <div class="card-content has-text-white">
+          <p class="title is-5 mb-2">
+            <strong style="color: #58a6ff">Live Orchestration</strong>
+          </p>
+          <p>
+            Launch, control, and monitor experiments instantly via the real-time
+            dashboard—supporting admin and guest access.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-6">
+    <blockquote class="has-text-grey-lighter is-size-5">
+      <em
+        >“One command to science: launch, orchestrate, and visualize MARL
+        experiments from anywhere.”</em
+      >
+    </blockquote>
+  </div>
+</div>
+
+{{ end }}

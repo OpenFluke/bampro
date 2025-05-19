@@ -1,0 +1,83 @@
+{{ define "layout" }}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ .Title }}</title>
+    <link rel="stylesheet" href="/static/css/bulma.min.css" />
+    <link rel="stylesheet" href="/static/css/custom.css" />
+    <link rel="stylesheet" href="/static/css/all.min.css" />
+    <link rel="icon" type="image/x-icon" href="/static/images/favico.ico" />
+  </head>
+  <body>
+    <!-- NAVIGATION BAR -->
+    <nav
+      class="navbar is-dark"
+      role="navigation"
+      aria-label="main navigation"
+      style="position: fixed; top: 0; left: 0; width: 100%; z-index: 1000"
+    >
+      <div class="container">
+        <div class="navbar-brand">
+          <a class="navbar-item" href="/">
+            <img
+              src="/static/images/bampro.png"
+              alt="Bampro Logo"
+              style="max-height: 40px"
+            />Bampro
+          </a>
+          <a role="button" class="navbar-burger" id="navbarBurger">
+            <span></span>
+            <span></span>
+            <span></span>
+          </a>
+        </div>
+        <div id="navbarMenu" class="navbar-menu">
+          <div class="navbar-start">
+            <a class="navbar-item" href="/">Home</a>
+            <a class="navbar-item" href="/run">Dashboard</a>
+            <a class="navbar-item" href="/about">About</a>
+          </div>
+          <div class="navbar-end">
+            <!--
+        <div class="navbar-item">
+          <span id="userStatus"></span>
+        </div>
+        <div class="navbar-item">
+          <a class="button is-primary" href="/login" id="loginBtn">Log In</a>
+         
+          <a class="button is-info" href="/user" id="userAccountBtn" style="display: none;">My Account</a>
+          <button class="button is-warning" id="logoutBtn" style="display: none;">Log Out</button>
+         
+        </div>
+         -->
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN CONTENT AREA -->
+    <section class="section">
+      <div class="container">{{ .Content }}</div>
+    </section>
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="content has-text-centered">
+        <p>© 2025 OpenFluke. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const navbarBurger = document.getElementById("navbarBurger");
+        const navbarMenu = document.getElementById("navbarMenu");
+        navbarBurger.addEventListener("click", () => {
+          navbarBurger.classList.toggle("is-active");
+          navbarMenu.classList.toggle("is-active");
+        });
+      });
+    </script>
+  </body>
+</html>
+{{ end }}
