@@ -1,3 +1,6 @@
 [submodule "primordia"]
 	path = primordia
 	url = https://github.com/OpenFluke/primordia.git
+[submodule "thinking/bampro-dashboard"]
+	path = thinking/bampro-dashboard
+	url = https://github.com/openfluke/bampro-dashboard.git

@@ -147,3 +147,9 @@ html, body {
   position: relative; /* Ensures content stays above the overlay */
   z-index: 2; /* Above the overlay */
 }
+
+.highlight-strong {
+  color: #00ffff !important;     /* Bright cyan */
+  text-shadow: 0 0 8px #00ffff;  /* Optional: glow effect */
+  font-weight: bold;             /* Just in case */
+}
