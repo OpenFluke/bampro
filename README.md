@@ -12,12 +12,10 @@ bampro/
 ├── LICENSE               # Project license
 ├── primordia/            # Primordia simulation/game engine
 ├── README.md             # This file
-├── simulating/           # Custom MARL backend or agent logic
 ├── thinking/             # Supporting AI logic, neural networks, or Paragon components
 ```
 
 - **primordia/**: Hosts the simulation engine for running experiments.
-- **simulating/**: Contains your custom backend or multi-agent system logic.
 - **thinking/**: Includes additional AI components, such as neural networks or MARL algorithms.
 
 ## 🚀 Quick Start
@@ -46,7 +44,6 @@ docker-compose up --force-recreate
 
   ```sh
   docker-compose logs primordia
-  docker-compose logs simulating
   ```
 
   Replace with the actual service names defined in `docker-compose.yaml`.
@@ -79,5 +76,5 @@ To run Biofoundry in headless mode with specific port and worker configurations,
 
 ```bash
 cd primordia/biofoundry
-./BioFoundry.x86_64 --headless -UDPPort=15000 -TCPPort=16000 -TCPWorkers=14000
+./BioFoundry.x86_64 --headless -headless -UDPPort=15000 -TCPPort=16000 -TCPWorkers=14000
 ```

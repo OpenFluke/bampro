@@ -3,7 +3,8 @@ module main
 go 1.24.1
 
 require (
-	github.com/OpenFluke/PARAGON v0.0.0-20250514085035-fad86947003d // indirect
+	github.com/OpenFluke/PARAGON v0.0.0-20250518224322-3e4efc43a8e5 // indirect
+	github.com/OpenFluke/discover v0.0.0-20250519003307-f6cc735546b9 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/gofiber/fiber/v2 v2.52.6 // indirect
 	github.com/google/uuid v1.6.0 // indirect

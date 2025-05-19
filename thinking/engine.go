@@ -1,7 +1,16 @@
 package main
 
+import (
+	"fmt"
+
+	"github.com/OpenFluke/discover"
+)
+
 // GlobalNetworks holds all constructed networks — accessible from anywhere
-var GlobalNetworks []NamedNetwork
+var (
+	GlobalNetworks []NamedNetwork
+	disco          *discover.Discover // Use D.I.S.C.O.V.E.R. for world/scene info
+)
 
 func main() {
 	// This matches the Actor network used in Biofoundry agents
@@ -14,9 +23,40 @@ func main() {
 	acts := []string{"linear", "relu", "relu", "tanh"}
 	full := []bool{true, true, true, true}
 
-	// Build all variants for all types
+	// Build all variants for all types (unchanged)
 	buildAllNetworks(layers, acts, full)
 	TryToConnect()
-	host()
 
+	// ---- D.I.S.C.O.V.E.R. scene scan ----
+	cfg := discover.Config{
+		Hosts:      []string{"localhost"}, // Use your environment hosts
+		StartPort:  14000,
+		PortStep:   3,
+		NumPods:    1,
+		AuthPass:   "my_secure_password",
+		Delimiter:  "<???DONE???---",
+		TimeoutSec: 10,
+	}
+	disco = discover.NewDiscover(cfg)
+	disco.ScanAll()
+	disco.PrintSummary()
+
+	// Use planet and cube data for spawning or agent setup
+	planetCenters := disco.ExtractPlanetCenters()
+	fmt.Println("Planet centers for agent spawning:", planetCenters)
+
+	// Example: Generate spawn points around the first planet found
+	var firstPlanet string
+	for name := range disco.Planets {
+		firstPlanet = name
+		break
+	}
+	if firstPlanet != "" {
+		spawnPoints, _ := disco.GenerateSpawnPositions(firstPlanet, 8, 100.0)
+		fmt.Printf("Sample spawn points around %s: %v\n", firstPlanet, spawnPoints)
+	}
+
+	// ...add any additional logic for agent spawning, experiment setup, etc...
+
+	host()
 }
