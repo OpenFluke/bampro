@@ -1,0 +1,9 @@
+{{ define "run" }}
+<link rel="stylesheet" href="/static/dashboard/{{ .CSSBundle }}" />
+<section class="section">
+  <div class="container">
+    <div id="root"></div>
+    <script src="/static/dashboard/{{ .JSBundle }}"></script>
+  </div>
+</section>
+{{ end }}

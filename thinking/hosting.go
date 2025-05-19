@@ -79,6 +79,24 @@ func host() {
 		return c.Render("layout", data)
 	})
 
+	app.Get("/dashboard", func(c *fiber.Ctx) error {
+		jsBundle := findBundle("./static/dashboard/static/js", "main.", ".js")
+		cssBundle := findBundle("./static/dashboard/static/css", "main.", ".css")
+		data := fiber.Map{
+			"Title":     "Experiment Dashboard",
+			"JSBundle":  "static/js/" + jsBundle,
+			"CSSBundle": "static/css/" + cssBundle,
+		}
+		// Render "run" template as string
+		content, err := renderContent(engine, "run", data)
+		if err != nil {
+			return err
+		}
+		data["Content"] = template.HTML(content)
+		// Render layout.html, injecting .Content
+		return c.Render("layout", data)
+	})
+
 	log.Printf("Starting Fiber server on port %s\n", port)
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

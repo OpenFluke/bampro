@@ -9,6 +9,9 @@ html, body {
     margin: 0;
     padding: 0;
   }
+
+
+  
   
   /* Navbar Styling */
   .navbar {
@@ -153,3 +156,4 @@ html, body {
   text-shadow: 0 0 8px #00ffff;  /* Optional: glow effect */
   font-weight: bold;             /* Just in case */
 }
+
