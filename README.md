@@ -4,16 +4,31 @@
 
 This project leverages Docker Compose to orchestrate the **Primordia simulation** alongside a custom AI backend for distributed multi-agent reinforcement learning (MARL) experiments.
 
+## GIT CLONE
+
+```
+git clone --recurse-submodules https://github.com/OpenFluke/bampro
+```
+
+## Setup Docker
+
+Run the following to install Docker and Docker Compose:
+
+```bash
+sudo ./install_docker.sh
+
 ## 📁 Project Structure
 
 ```
+
 bampro/
-├── docker-compose.yaml    # Docker Compose orchestration file
-├── LICENSE               # Project license
-├── primordia/            # Primordia simulation/game engine
-├── README.md             # This file
-├── thinking/             # Supporting AI logic, neural networks, or Paragon components
-```
+├── docker-compose.yaml # Docker Compose orchestration file
+├── LICENSE # Project license
+├── primordia/ # Primordia simulation/game engine
+├── README.md # This file
+├── thinking/ # Supporting AI logic, neural networks, or Paragon components
+
+````
 
 - **primordia/**: Hosts the simulation engine for running experiments.
 - **thinking/**: Includes additional AI components, such as neural networks or MARL algorithms.
@@ -31,7 +46,7 @@ docker-compose build --no-cache
 
 # Start all services and force recreate containers
 docker-compose up --force-recreate
-```
+````
 
 ## 🖧 Communication
 
