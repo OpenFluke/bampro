@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/static/css/all.min.css" />
     <link rel="icon" type="image/x-icon" href="/static/images/favico.ico" />
   </head>
-  <body>
+  <body class="has-background-black-ter">
     <!-- NAVIGATION BAR -->
     <nav
       class="navbar is-dark"
@@ -58,8 +58,11 @@
     </nav>
 
     <!-- MAIN CONTENT AREA -->
-    <section class="section">
-      <div class="container">{{ .Content }}</div>
+    <section
+      class=""
+      style="padding-top: 5rem; height: calc(100vh - 3rem); overflow-y: auto"
+    >
+      <div class="container is-fluid">{{ .Content }}</div>
     </section>
     <!-- FOOTER -->
     <footer class="footer">
