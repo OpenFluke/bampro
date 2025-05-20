@@ -68,13 +68,12 @@ func main() {
 		fmt.Println("   Auto-launch enabled?", cfg.AutoLaunch)
 
 		experimentConfig = cfg
+		ensureInitialModelSetup(cfg)
 	}
 
 	if cfg.AutoState {
 		// Try to load existing best model state
 		fmt.Println("Auto starting")
-	} else {
-		// Always start fresh
 	}
 
 	go startWebSocketServer() // Starts WebSocket server on port 9001

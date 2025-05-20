@@ -1,62 +1,74 @@
 {
-    "name": "Generalization_Spectrum_SurvivalTest",
-    "description": "Test how different numerical types generalize using weight mutation spectrum and incremental distance-based checkpoint scoring.",
-  
-    "numerical_types": ["int64", "float32", "uint8"],
-    "planets": ["(0,0,0)", "(1,0,0)", "(2,0,0)", "(0,1,0)", "(0,0,1)"],
-    "episodes": 500,
-    "checkpoint_reward": 30,
-    "enable_checkpointing": true,
-    "auto_state": true,
-  
-    "spectrum_steps": 4,
-    "spectrum_max_stddev": 0.1,
-  
-    "mutation_strategy": {
-      "apply_noise_to": "weights",
-      "noise_type": "gaussian",
-      "reuse_best_model": true
+  "name": "Generalization_Spectrum_SurvivalTest",
+  "description": "Test how different numerical types generalize using weight mutation spectrum and incremental distance-based checkpoint scoring.",
+
+  "numerical_types": [
+    "int",
+    "int8",
+    "int16",
+    "int32",
+    "int64",
+    "uint",
+    "uint8",
+    "uint16",
+    "uint32",
+    "uint64",
+    "float32",
+    "float64"
+  ],
+  "planets": ["(0,0,0)", "(1,0,0)", "(2,0,0)", "(0,1,0)", "(0,0,1)"],
+  "episodes": 500,
+  "checkpoint_reward": 30,
+  "enable_checkpointing": true,
+  "auto_state": true,
+
+  "spectrum_steps": 4,
+  "spectrum_max_stddev": 0.1,
+
+  "mutation_strategy": {
+    "apply_noise_to": "weights",
+    "noise_type": "gaussian",
+    "reuse_best_model": true
+  },
+
+  "network_config": {
+    "layers": [
+      { "width": 6, "height": 1, "activation": "linear" },
+      { "width": 128, "height": 1, "activation": "relu" },
+      { "width": 128, "height": 1, "activation": "relu" },
+      { "width": 3, "height": 1, "activation": "tanh" }
+    ]
+  },
+
+  "movement": {
+    "translation": {
+      "clamp": { "x": 0.25, "y": 0.25, "z": 0.25 },
+      "actions_per_second": 10
     },
-  
-    "network_config": {
-      "layers": [
-        { "width": 6, "height": 1, "activation": "linear" },
-        { "width": 128, "height": 1, "activation": "relu" },
-        { "width": 128, "height": 1, "activation": "relu" },
-        { "width": 3, "height": 1, "activation": "tanh" }
-      ]
+    "rotation": {
+      "clamp": { "x": 5, "y": 5, "z": 5 },
+      "actions_per_second": 10
     },
-  
-    "movement": {
-      "translation": {
-        "clamp": { "x": 0.25, "y": 0.25, "z": 0.25 },
-        "actions_per_second": 10
-      },
-      "rotation": {
-        "clamp": { "x": 5, "y": 5, "z": 5 },
-        "actions_per_second": 10
-      },
-      "max_lifespan_seconds": 60
-    },
-  
-    "scoring": {
-      "type": "incremental_distance_tracking",
-      "evaluate_every_tick": true,
-      "method": "inverse_distance",
-      "reward_formula": "1 / (1 + d)",
-      "accumulate_over_life": true,
-      "score_if_timeout": true,
-      "normalize": false,
-      "notes": "Agent scores every tick based on distance to nearest checkpoint."
-    },
-  
-    "evaluation": {
-      "per_planet_tracking": true,
-      "save_final_distances": true,
-      "save_checkpoint_hits": true
-    },
-  
-    "auto_launch": true,
-    "notes": "Each numerical type spawns a best model which is mutated across a defined spectrum and deployed to every planet. Scoring is continuous and checkpoint-based."
-  }
-  
+    "max_lifespan_seconds": 60
+  },
+
+  "scoring": {
+    "type": "incremental_distance_tracking",
+    "evaluate_every_tick": true,
+    "method": "inverse_distance",
+    "reward_formula": "1 / (1 + d)",
+    "accumulate_over_life": true,
+    "score_if_timeout": true,
+    "normalize": false,
+    "notes": "Agent scores every tick based on distance to nearest checkpoint."
+  },
+
+  "evaluation": {
+    "per_planet_tracking": true,
+    "save_final_distances": true,
+    "save_checkpoint_hits": true
+  },
+
+  "auto_launch": true,
+  "notes": "Each numerical type spawns a best model which is mutated across a defined spectrum and deployed to every planet. Scoring is continuous and checkpoint-based."
+}

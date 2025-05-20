@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	paragon "github.com/OpenFluke/PARAGON"
 )
@@ -126,4 +127,105 @@ func buildWithMode[T paragon.Numeric](
 	})
 
 	fmt.Printf("🧱 Built: %-8s | Mode: %s\n", typeName, mode)
+}
+
+func (tb TypeModeBuilder) BuildSetWithSave(
+	layers []struct{ Width, Height int },
+	acts []string,
+	full []bool,
+	gen int,
+) {
+	switch tb.TypeName {
+	case "int":
+		buildVariantsWithSave[int](tb.TypeName, layers, acts, full, gen)
+	case "int8":
+		buildVariantsWithSave[int8](tb.TypeName, layers, acts, full, gen)
+	case "int16":
+		buildVariantsWithSave[int16](tb.TypeName, layers, acts, full, gen)
+	case "int32":
+		buildVariantsWithSave[int32](tb.TypeName, layers, acts, full, gen)
+	case "int64":
+		buildVariantsWithSave[int64](tb.TypeName, layers, acts, full, gen)
+	case "uint":
+		buildVariantsWithSave[uint](tb.TypeName, layers, acts, full, gen)
+	case "uint8":
+		buildVariantsWithSave[uint8](tb.TypeName, layers, acts, full, gen)
+	case "uint16":
+		buildVariantsWithSave[uint16](tb.TypeName, layers, acts, full, gen)
+	case "uint32":
+		buildVariantsWithSave[uint32](tb.TypeName, layers, acts, full, gen)
+	case "uint64":
+		buildVariantsWithSave[uint64](tb.TypeName, layers, acts, full, gen)
+	case "float32":
+		buildVariantsWithSave[float32](tb.TypeName, layers, acts, full, gen)
+	case "float64":
+		buildVariantsWithSave[float64](tb.TypeName, layers, acts, full, gen)
+	}
+}
+
+func buildVariantsWithSave[T paragon.Numeric](
+	typeName string,
+	layers []struct{ Width, Height int },
+	acts []string,
+	full []bool,
+	generation int,
+) {
+	buildWithModeAndSave[T](typeName, "Standard", layers, acts, full, generation, func(nn *paragon.Network[T]) {})
+
+	buildWithModeAndSave[T](typeName, "Replay", layers, acts, full, generation, func(nn *paragon.Network[T]) {
+		layer := &nn.Layers[1]
+		layer.ReplayEnabled = true
+		layer.ReplayPhase = "after"
+		layer.ReplayOffset = -1
+		layer.MaxReplay = 1
+	})
+
+	buildWithModeAndSave[T](typeName, "DynamicReplay", layers, acts, full, generation, func(nn *paragon.Network[T]) {
+		layer := &nn.Layers[1]
+		layer.ReplayEnabled = true
+		layer.ReplayBudget = 3
+		layer.ReplayGateFunc = func(_ [][]T) float64 { return 0.6 }
+		layer.ReplayGateToReps = func(score float64) int {
+			switch {
+			case score > 0.8:
+				return 3
+			case score > 0.6:
+				return 2
+			default:
+				return 1
+			}
+		}
+	})
+}
+
+func buildWithModeAndSave[T paragon.Numeric](
+	typeName, mode string,
+	layers []struct{ Width, Height int },
+	acts []string,
+	full []bool,
+	gen int,
+	config func(*paragon.Network[T]),
+) {
+	nn := paragon.NewNetwork[T](layers, acts, full)
+	config(nn)
+
+	GlobalNetworks = append(GlobalNetworks, NamedNetwork{
+		TypeName: typeName,
+		Mode:     mode,
+		Net:      nn,
+	})
+
+	fmt.Printf("🧱 Built: %-8s | Mode: %s\n", typeName, mode)
+
+	saveDir := fmt.Sprintf("models/%d", gen)
+	_ = os.MkdirAll(saveDir, 0755)
+	savePath := fmt.Sprintf("%s/%s_%s.json", saveDir, typeName, mode)
+
+	if _, err := os.Stat(savePath); os.IsNotExist(err) {
+		if err := nn.SaveJSON(savePath); err != nil {
+			fmt.Printf("❌ Failed to save model %s: %v\n", savePath, err)
+		} else {
+			fmt.Printf("💾 Saved model: %s\n", savePath)
+		}
+	}
 }
