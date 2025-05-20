@@ -55,19 +55,31 @@ install_ubuntu() {
 
 # Function to install Docker and Docker Compose on Fedora
 install_fedora() {
-    # Remove old Docker installations, if any
-    sudo dnf remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-selinux docker-engine-selinux docker-engine || true
+    # Remove conflicting Docker installations, including Fedora's moby-engine and docker-compose
+    sudo dnf remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-selinux docker-engine-selinux docker-engine moby-engine docker-cli docker-compose moby-filesystem moby-engine-nano docker-compose-switch docker-buildx || true
 
     # Install dnf-plugins-core if not present
-    sudo dnf -y install dnf-plugins-core
-
-    # Add Docker repository
-    if ! sudo dnf repolist | grep -q docker-ce; then
-        sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+    if ! rpm -q dnf-plugins-core >/dev/null 2>&1; then
+        sudo dnf -y install dnf-plugins-core
     fi
 
-    # Install Docker and Compose
-    sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    # Add Docker repository
+    if ! sudo dnf repolist --enabled | grep -q docker-ce; then
+        if ! sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo 2>/dev/null; then
+            echo "Warning: dnf config-manager --add-repo failed. Adding repo manually."
+            sudo bash -c 'cat > /etc/yum.repos.d/docker-ce.repo <<EOF
+[docker-ce-stable]
+name=Docker CE Stable - \$basearch
+baseurl=https://download.docker.com/linux/fedora/\$releasever/\$basearch/stable
+enabled=1
+gpgcheck=1
+gpgkey=https://download.docker.com/linux/fedora/gpg
+EOF'
+        fi
+    fi
+
+    # Install Docker and Compose with --allowerasing to resolve conflicts
+    sudo dnf -y install --allowerasing docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
     # Start and enable Docker service
     sudo systemctl enable docker.service

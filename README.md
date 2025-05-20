@@ -10,12 +10,24 @@ This project leverages Docker Compose to orchestrate the **Primordia simulation*
 git clone --recurse-submodules https://github.com/OpenFluke/bampro
 ```
 
+## Setup biofoundry
+
+```
+cd primordia/
+./download_biofoundry.sh
+```
+
 ## Setup Docker
 
 Run the following to install Docker and Docker Compose:
 
 ```bash
+chmod +x install_docker.sh
+```
+
+```bash
 sudo ./install_docker.sh
+```
 
 ## 📁 Project Structure
 
@@ -28,7 +40,7 @@ bampro/
 ├── README.md # This file
 ├── thinking/ # Supporting AI logic, neural networks, or Paragon components
 
-````
+```
 
 - **primordia/**: Hosts the simulation engine for running experiments.
 - **thinking/**: Includes additional AI components, such as neural networks or MARL algorithms.
@@ -46,7 +58,13 @@ docker-compose build --no-cache
 
 # Start all services and force recreate containers
 docker-compose up --force-recreate
-````
+```
+
+or
+
+```
+docker compose up
+```
 
 ## 🖧 Communication
 
