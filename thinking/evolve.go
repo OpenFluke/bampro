@@ -3,11 +3,9 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	paragon "github.com/OpenFluke/PARAGON"
 )
@@ -122,142 +120,40 @@ func GenerateModelSpectrum(base NamedNetwork, steps int, maxStdDev float64) []Na
 
 	for i := 0; i < steps; i++ {
 		var newNet any
+		var err error
 
 		switch base.TypeName {
 		case "float32":
-			original := base.Net.(*paragon.Network[float32])
-			snap := original.ToS()
-			var clone paragon.Network[float32]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone float32 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[float32]), maxStdDev, i)
 		case "float64":
-			original := base.Net.(*paragon.Network[float64])
-			snap := original.ToS()
-			var clone paragon.Network[float64]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone float64 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[float64]), maxStdDev, i)
 		case "int":
-			original := base.Net.(*paragon.Network[int])
-			snap := original.ToS()
-			var clone paragon.Network[int]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone int network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[int]), maxStdDev, i)
 		case "int8":
-			original := base.Net.(*paragon.Network[int8])
-			snap := original.ToS()
-			var clone paragon.Network[int8]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone int8 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[int8]), maxStdDev, i)
 		case "int16":
-			original := base.Net.(*paragon.Network[int16])
-			snap := original.ToS()
-			var clone paragon.Network[int16]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone int16 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[int16]), maxStdDev, i)
 		case "int32":
-			original := base.Net.(*paragon.Network[int32])
-			snap := original.ToS()
-			var clone paragon.Network[int32]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone int32 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[int32]), maxStdDev, i)
 		case "int64":
-			original := base.Net.(*paragon.Network[int64])
-			snap := original.ToS()
-			var clone paragon.Network[int64]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone int64 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[int64]), maxStdDev, i)
 		case "uint":
-			original := base.Net.(*paragon.Network[uint])
-			snap := original.ToS()
-			var clone paragon.Network[uint]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone uint network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[uint]), maxStdDev, i)
 		case "uint8":
-			original := base.Net.(*paragon.Network[uint8])
-			snap := original.ToS()
-			var clone paragon.Network[uint8]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone uint8 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[uint8]), maxStdDev, i)
 		case "uint16":
-			original := base.Net.(*paragon.Network[uint16])
-			snap := original.ToS()
-			var clone paragon.Network[uint16]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone uint16 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[uint16]), maxStdDev, i)
 		case "uint32":
-			original := base.Net.(*paragon.Network[uint32])
-			snap := original.ToS()
-			var clone paragon.Network[uint32]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone uint32 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[uint32]), maxStdDev, i)
 		case "uint64":
-			original := base.Net.(*paragon.Network[uint64])
-			snap := original.ToS()
-			var clone paragon.Network[uint64]
-			if err := clone.FromS(snap); err != nil {
-				fmt.Printf("❌ Failed to clone uint64 network: %v\n", err)
-				continue
-			}
-			ApplyNoiseToNetwork(&clone, maxStdDev)
-			newNet = &clone
-
+			newNet, err = cloneAndMutate(base.Net.(*paragon.Network[uint64]), maxStdDev, i)
 		default:
 			fmt.Printf("⚠️ Unsupported type %s in spectrum\n", base.TypeName)
+			continue
+		}
+
+		if err != nil {
+			fmt.Printf("❌ Clone failed for %s: %v\n", base.TypeName, err)
 			continue
 		}
 
@@ -271,17 +167,12 @@ func GenerateModelSpectrum(base NamedNetwork, steps int, maxStdDev float64) []Na
 	return mutated
 }
 
-func ApplyNoiseToNetwork[T paragon.Numeric](net *paragon.Network[T], maxStdDev float64) {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for l := 1; l < len(net.Layers); l++ { // Skip input layer
-		for y := 0; y < net.Layers[l].Height; y++ {
-			for x := 0; x < net.Layers[l].Width; x++ {
-				neuron := net.Layers[l].Neurons[y][x]
-				for i := range neuron.Inputs {
-					noise := rng.NormFloat64() * maxStdDev
-					neuron.Inputs[i].Weight += T(noise)
-				}
-			}
-		}
+func cloneAndMutate[T paragon.Numeric](net *paragon.Network[T], stddev float64, seed int) (*paragon.Network[T], error) {
+	snap := net.ToS()
+	var clone paragon.Network[T]
+	if err := clone.FromS(snap); err != nil {
+		return nil, err
 	}
+	clone.PerturbWeights(stddev, seed)
+	return &clone, nil
 }
