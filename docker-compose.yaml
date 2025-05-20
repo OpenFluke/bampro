@@ -18,5 +18,7 @@ services:
     container_name: primordia-sim
     # Expose any TCP/UDP ports needed by your simulation for AI comms
     ports:
-      - "9000:9000" # example: change to match your Primordia's server port
+      - "15000:15000/udp" # UDP port for game
+      - "16000:16000/tcp" # TCP port for game control
+      - "14000:14000/tcp" # TCP for worker/AI integration
     restart: unless-stopped
