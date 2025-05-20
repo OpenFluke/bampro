@@ -40,5 +40,7 @@ COPY --from=dashboard-builder /dashboard/build ./static/dashboard
 COPY static ./static
 
 EXPOSE 8123
+EXPOSE 9001
+
 
 CMD ["./main"]

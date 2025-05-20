@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/OpenFluke/discover"
 )
 
@@ -25,7 +23,7 @@ func main() {
 
 	// Build all variants for all types (unchanged)
 	buildAllNetworks(layers, acts, full)
-	TryToConnect()
+	/*TryToConnect()
 
 	// ---- D.I.S.C.O.V.E.R. scene scan ----
 	cfg := discover.Config{
@@ -54,9 +52,9 @@ func main() {
 	if firstPlanet != "" {
 		spawnPoints, _ := disco.GenerateSpawnPositions(firstPlanet, 8, 100.0)
 		fmt.Printf("Sample spawn points around %s: %v\n", firstPlanet, spawnPoints)
-	}
+	}*/
 
-	// ...add any additional logic for agent spawning, experiment setup, etc...
-
+	go startWebSocketServer() // Starts WebSocket server on port 9001
+	go startStatusPoller()
 	host()
 }

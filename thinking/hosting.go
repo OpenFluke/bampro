@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
@@ -96,6 +97,29 @@ func host() {
 		// Render layout.html, injecting .Content
 		return c.Render("layout", data)
 	})
+
+	app.Get("/ws/status", websocket.New(func(c *websocket.Conn) {
+		clientsMu.Lock()
+		clients[c] = true
+		clientsMu.Unlock()
+
+		defer func() {
+			clientsMu.Lock()
+			delete(clients, c)
+			clientsMu.Unlock()
+			c.Close()
+		}()
+
+		for {
+			// Replace with real status data in your logic
+			// Optionally listen to a channel here for status updates
+			msg := fmt.Sprintf(`{"message":"Server time: %s"}`, time.Now().Format("15:04:05"))
+			if err := c.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+				break
+			}
+			time.Sleep(3 * time.Second)
+		}
+	}))
 
 	log.Printf("Starting Fiber server on port %s\n", port)
 	if err := app.Listen(":" + port); err != nil {
