@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/OpenFluke/discover"
 )
 
@@ -12,7 +14,7 @@ var (
 
 func main() {
 	// This matches the Actor network used in Biofoundry agents
-	layers := []struct{ Width, Height int }{
+	/*layers := []struct{ Width, Height int }{
 		{6, 1},   // StateDim
 		{128, 1}, // Hidden layer 1
 		{128, 1}, // Hidden layer 2
@@ -22,7 +24,7 @@ func main() {
 	full := []bool{true, true, true, true}
 
 	// Build all variants for all types (unchanged)
-	buildAllNetworks(layers, acts, full)
+	buildAllNetworks(layers, acts, full)*/
 	/*TryToConnect()
 
 	// ---- D.I.S.C.O.V.E.R. scene scan ----
@@ -53,6 +55,27 @@ func main() {
 		spawnPoints, _ := disco.GenerateSpawnPositions(firstPlanet, 8, 100.0)
 		fmt.Printf("Sample spawn points around %s: %v\n", firstPlanet, spawnPoints)
 	}*/
+
+	cfg, err := LoadExperimentConfig("experiment_config.json")
+	if err != nil {
+		fmt.Println("❌ Failed to load experiment config:", err)
+	} else {
+		fmt.Printf("✅ Loaded Experiment: %s\n", cfg.Name)
+		fmt.Printf("   Description: %s\n", cfg.Description)
+		fmt.Printf("   Numerical Types: %v\n", cfg.NumericalTypes)
+		fmt.Printf("   Planets: %v\n", cfg.Planets)
+		fmt.Printf("   Spectrum: %d steps, max stddev %.4f\n", cfg.SpectrumSteps, cfg.SpectrumMaxStdDev)
+		fmt.Println("   Auto-launch enabled?", cfg.AutoLaunch)
+
+		experimentConfig = cfg
+	}
+
+	if cfg.AutoState {
+		// Try to load existing best model state
+		fmt.Println("Auto starting")
+	} else {
+		// Always start fresh
+	}
 
 	go startWebSocketServer() // Starts WebSocket server on port 9001
 	go startStatusPoller()

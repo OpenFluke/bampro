@@ -38,6 +38,8 @@ COPY --from=dashboard-builder /dashboard/build ./static/dashboard
 
 # Copy backend's static files (CSS, images, etc.)
 COPY static ./static
+COPY experiment_config.json ./
+
 
 EXPOSE 8123
 EXPOSE 9001

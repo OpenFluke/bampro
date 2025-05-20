@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
 	"os"
 	"time"
 
@@ -31,7 +29,6 @@ func startStatusPoller() {
 		for {
 			time.Sleep(1 * time.Second)
 
-			// Resolve GAME_HOST from env, fallback to "localhost"
 			hostName := os.Getenv("GAME_HOST")
 			if hostName == "" {
 				hostName = "localhost"
@@ -50,7 +47,7 @@ func startStatusPoller() {
 			d := discover.NewDiscover(cfg)
 			d.ScanAll()
 
-			planetSummaries := []PlanetSummary{}
+			planetSummaries := make([]PlanetSummary, 0, len(d.Planets))
 			for _, p := range d.Planets {
 				planetSummaries = append(planetSummaries, PlanetSummary{
 					Name: p.Name,
@@ -60,8 +57,7 @@ func startStatusPoller() {
 				})
 			}
 
-			// Count cubes per host
-			hostCount := map[string]int{}
+			hostCount := make(map[string]int)
 			for _, host := range d.Cubes {
 				hostCount[host]++
 			}
@@ -74,13 +70,10 @@ func startStatusPoller() {
 				CubeHosts:    hostCount,
 			}
 
-			data, err := json.Marshal(status)
-			if err != nil {
-				log.Println("❌ Failed to encode status JSON:", err)
-				continue
+			data := SerializeTyped(TypeStatusUpdate, status)
+			if data != nil {
+				broadcastStatus(data)
 			}
-
-			broadcastStatus(data)
 		}
 	}()
 }
