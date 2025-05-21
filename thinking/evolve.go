@@ -5,53 +5,87 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	paragon "github.com/OpenFluke/PARAGON"
 )
 
+type SpectrumSaver struct {
+	TypeName  string // e.g. "float32"
+	Mode      string // e.g. "Replay"
+	Gen       int    // e.g. 1
+	Steps     int    // Number of spectrum mutations to generate
+	MaxStdDev float64
+	BaseModel any // the loaded *paragon.Network[T]
+}
+
 // Main loop for evolutionary generation
 func RunEpisodeLoop(cfg *ExperimentConfig) {
 	fmt.Println("🔁 Starting Episode Loop...")
+	modes := []string{"Standard", "Replay", "DynamicReplay"}
 
 	for gen := 0; gen < cfg.Episodes; gen++ {
-		fmt.Printf("\n📦 Checking generation %d...\n", gen)
+		fmt.Printf("\n📦 Generation %d\n", gen)
 
-		genDir := fmt.Sprintf("models/%d", gen)
-		resultsPath := filepath.Join(genDir, "results.json")
+		for _, numType := range cfg.NumericalTypes {
+			for _, mode := range modes {
+				// Step 1: define folder for variants
+				mutatedDir := filepath.Join("models", fmt.Sprint(gen), fmt.Sprintf("mutated_%s_%s", numType, mode))
+				if err := os.MkdirAll(mutatedDir, 0755); err != nil {
+					fmt.Printf("❌ Could not create folder: %s\n", mutatedDir)
+					continue
+				}
 
-		// STEP 1: Check for existing results
-		fmt.Printf("🔍 Looking for results.json at: %s\n", resultsPath)
-		if _, err := os.Stat(resultsPath); os.IsNotExist(err) {
-			fmt.Printf("🧪 No results.json for Gen %d – beginning processing...\n", gen)
+				//modelPath := filepath.Join(mutatedDir, fmt.Sprintf("%s_%s.json", numType, mode))
+				modelPath := ""
+				// Step 2: load base model on generation 0
+				if gen == 0 {
+					modelPath = filepath.Join("models", strconv.Itoa(gen), fmt.Sprintf("%s_%s.json", numType, mode))
+					/*netAny, err := paragon.LoadNamedNetworkFromJSONFile(modelPath)
+					if err != nil {
+						fmt.Printf("❌ Failed to load base model from %s: %v\n", modelPath, err)
+						continue
+					}*/
 
-			// STEP 2: Load base models
-			fmt.Println("📥 Loading base models...")
-			baseModels := LoadBaseModelsForGen(gen)
-			fmt.Printf("📊 Found %d base models for mutation.\n", len(baseModels))
+				}
 
-			// STEP 3: Generate mutated spectrum
-			var readyModels []NamedNetwork
-			for i, base := range baseModels {
-				fmt.Printf("🌱 Mutating model %d/%d (%s_%s)...\n", i+1, len(baseModels), base.TypeName, base.Mode)
-				spectrum := GenerateModelSpectrum(base, cfg.SpectrumSteps, cfg.SpectrumMaxStdDev)
-				fmt.Printf("🔬 → Generated %d variants.\n", len(spectrum))
-				readyModels = append(readyModels, spectrum...)
+				fmt.Println("Grabbing model from ", modelPath)
+				fmt.Printf("🧪 [%s_%s] Checking mutations in: %s\n", numType, mode, mutatedDir)
+
+				// then:
+				if !hasAllVariants(mutatedDir, cfg.SpectrumSteps) {
+					// Load model
+					netAny, err := paragon.LoadNamedNetworkFromJSONFile(modelPath)
+					if err != nil {
+						fmt.Printf("❌ Failed to load base model from %s: %v\n", modelPath, err)
+						continue
+					}
+
+					// Save missing variants
+					saver := &SpectrumSaver{
+						TypeName:  numType,
+						Mode:      mode,
+						Gen:       gen,
+						Steps:     cfg.SpectrumSteps,
+						MaxStdDev: cfg.SpectrumMaxStdDev,
+						BaseModel: netAny,
+					}
+
+					if err := saver.SaveSpectrumVariants(); err != nil {
+						fmt.Printf("❌ Spectrum save failed: %v\n", err)
+						continue
+					}
+				} else {
+					fmt.Printf("✅ All %d variants already exist in %s\n", cfg.SpectrumSteps, mutatedDir)
+				}
+
+				// TODO: for gen > 0 or post-gen-0: load mutated models and run evaluations
 			}
-
-			// STEP 4: Summary
-			fmt.Printf("✅ Total mutated models generated for Gen %d: %d\n", gen, len(readyModels))
-
-			// STEP 5: Placeholder for next phase (e.g., training, evaluation)
-			fmt.Println("📡 Ready for training/evaluation... (WebSocket updates go here)")
-
-			break // 🚧 TEMP: Only process one generation for now
-		} else {
-			fmt.Printf("✅ Gen %d already processed — skipping.\n", gen)
 		}
-	}
 
-	fmt.Println("🛑 Episode loop exited (after first generation).")
+		break // TEMP: Only process generation 0
+	}
 }
 
 func LoadBaseModelsForGen(gen int) []NamedNetwork {
@@ -173,6 +207,126 @@ func cloneAndMutate[T paragon.Numeric](net *paragon.Network[T], stddev float64, 
 	if err := clone.FromS(snap); err != nil {
 		return nil, err
 	}
+	clone.TypeName = net.TypeName // ✅ Set it here
 	clone.PerturbWeights(stddev, seed)
 	return &clone, nil
+}
+
+type BaseModelInfo struct {
+	TypeName string
+	Mode     string
+	Path     string
+}
+
+func DiscoverBaseModelPathsForGen(gen int) []BaseModelInfo {
+	dir := fmt.Sprintf("models/%d", gen)
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		fmt.Printf("❌ Failed to read model dir for Gen %d: %v\n", gen, err)
+		return nil
+	}
+
+	var models []BaseModelInfo
+	for _, f := range files {
+		if f.IsDir() || filepath.Ext(f.Name()) != ".json" {
+			continue
+		}
+
+		name := strings.TrimSuffix(f.Name(), ".json")
+		parts := strings.Split(name, "_")
+		if len(parts) != 2 {
+			continue
+		}
+
+		models = append(models, BaseModelInfo{
+			TypeName: parts[0],
+			Mode:     parts[1],
+			Path:     filepath.Join(dir, f.Name()),
+		})
+	}
+	return models
+}
+
+func hasAllVariants(dir string, steps int) bool {
+	for i := 0; i < steps; i++ {
+		variantPath := filepath.Join(dir, fmt.Sprintf("variant_%d.json", i))
+		if _, err := os.Stat(variantPath); os.IsNotExist(err) {
+			return false // missing at least one
+		}
+	}
+	return true
+}
+
+func (s *SpectrumSaver) SaveSpectrumVariants() error {
+	outputDir := filepath.Join("models", fmt.Sprint(s.Gen), fmt.Sprintf("mutated_%s_%s", s.TypeName, s.Mode))
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output dir: %w", err)
+	}
+
+	switch base := s.BaseModel.(type) {
+
+	case *paragon.Network[float32]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[float64]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[int]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[int8]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[int16]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[int32]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[int64]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[uint]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[uint8]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[uint16]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[uint32]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	case *paragon.Network[uint64]:
+		return saveVariantsForType(base, s.TypeName, s.Mode, outputDir, s.Steps, s.MaxStdDev)
+
+	default:
+		return fmt.Errorf("unsupported network type: %T", base)
+	}
+}
+
+func saveVariantsForType[T paragon.Numeric](
+	base *paragon.Network[T],
+	typeName string,
+	mode string,
+	outputDir string,
+	steps int,
+	stddev float64,
+) error {
+	for i := 0; i < steps; i++ {
+		clone, err := cloneAndMutate(base, stddev, i)
+		if err != nil {
+			fmt.Printf("❌ Clone/mutation failed [%s_%s_mut%d]: %v\n", typeName, mode, i, err)
+			continue
+		}
+
+		filePath := filepath.Join(outputDir, fmt.Sprintf("variant_%d.json", i))
+		if err := clone.SaveJSON(filePath); err != nil {
+			fmt.Printf("❌ Save failed for variant %d: %v\n", i, err)
+		} else {
+			fmt.Printf("💾 Saved variant: %s\n", filePath)
+		}
+	}
+	return nil
 }

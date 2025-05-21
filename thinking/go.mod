@@ -3,7 +3,7 @@ module main
 go 1.24.1
 
 require (
-	github.com/OpenFluke/PARAGON v0.9.0 // indirect
+	github.com/OpenFluke/PARAGON v0.9.1-0.20250521064953-70f41e5891aa // indirect
 	github.com/OpenFluke/discover v0.0.0-20250519003307-f6cc735546b9 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/fasthttp/websocket v1.5.3 // indirect

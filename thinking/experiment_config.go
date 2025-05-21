@@ -7,23 +7,24 @@ import (
 
 // Top-level config
 type ExperimentConfig struct {
-	Name                string           `json:"name"`
-	Description         string           `json:"description"`
-	NumericalTypes      []string         `json:"numerical_types"`
-	Planets             []string         `json:"planets"`
-	Episodes            int              `json:"episodes"`
-	CheckpointReward    int              `json:"checkpoint_reward"`
-	EnableCheckpointing bool             `json:"enable_checkpointing"`
-	SpectrumSteps       int              `json:"spectrum_steps"`
-	SpectrumMaxStdDev   float64          `json:"spectrum_max_stddev"`
-	MutationStrategy    MutationStrategy `json:"mutation_strategy"`
-	NetworkConfig       NetworkConfig    `json:"network_config"`
-	Movement            MovementConfig   `json:"movement"`
-	Scoring             ScoringConfig    `json:"scoring"`
-	Evaluation          EvaluationConfig `json:"evaluation"`
-	AutoLaunch          bool             `json:"auto_launch"`
-	Notes               string           `json:"notes"`
-	AutoState           bool             `json:"auto_state"`
+	Name                      string           `json:"name"`
+	Description               string           `json:"description"`
+	NumericalTypes            []string         `json:"numerical_types"`
+	Planets                   []string         `json:"planets"`
+	Episodes                  int              `json:"episodes"`
+	CheckpointReward          int              `json:"checkpoint_reward"`
+	EnableCheckpointing       bool             `json:"enable_checkpointing"`
+	SpectrumSteps             int              `json:"spectrum_steps"`
+	SpectrumMaxStdDev         float64          `json:"spectrum_max_stddev"`
+	MutationStrategy          MutationStrategy `json:"mutation_strategy"`
+	NetworkConfig             NetworkConfig    `json:"network_config"`
+	Movement                  MovementConfig   `json:"movement"`
+	Scoring                   ScoringConfig    `json:"scoring"`
+	Evaluation                EvaluationConfig `json:"evaluation"`
+	AutoLaunch                bool             `json:"auto_launch"`
+	Notes                     string           `json:"notes"`
+	AutoState                 bool             `json:"auto_state"`
+	EvaluationSpawnsPerPlanet int              `json:"evaluation_spawns_per_planet"`
 }
 
 // Nested structs
