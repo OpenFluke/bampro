@@ -44,7 +44,7 @@ func ensureInitialModelSetup(cfg *ExperimentConfig) {
 	}
 
 	if cfg.LoadBalance {
-		runBenchmarks(cfg)
+		go runBenchmarks(cfg)
 	}
 }
 

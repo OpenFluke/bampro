@@ -1,16 +1,133 @@
 // evolve.go
 package main
 
-import (
-	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
+import "fmt"
 
-	paragon "github.com/OpenFluke/PARAGON"
-)
+type Numeric interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
+		~float32 | ~float64
+}
+
+// We define symbolic modes using Go constants and types.
+type ExperimentMode interface {
+	isMode()
+	String() string
+}
+
+type StandardMode struct{}
+type ReplayMode struct{}
+type DynamicReplayMode struct{}
+
+func (StandardMode) isMode()             {}
+func (ReplayMode) isMode()               {}
+func (DynamicReplayMode) isMode()        {}
+func (StandardMode) String() string      { return "Standard" }
+func (ReplayMode) String() string        { return "Replay" }
+func (DynamicReplayMode) String() string { return "DynamicReplay" }
+
+type Experiment[T Numeric, M ExperimentMode] struct {
+	NumType string
+	Mode    M
+	Config  *ExperimentConfig
+	Gen     int
+}
+
+type ExperimentRunner interface {
+	SetGeneration(gen int)
+	GenerateVariants()
+	SpawnAgents() []Agent
+}
+
+func (e *Experiment[T, M]) SetGeneration(gen int) {
+	e.Gen = gen
+}
+
+func (e *Experiment[T, M]) GenerateVariants() {
+	// your logic
+	fmt.Println(e.Gen, e.NumType+e.Mode.String())
+}
+
+func (e *Experiment[T, M]) SpawnAgents() []Agent {
+	// your logic
+	return []Agent{}
+}
+
+func ParseExperimentMode(modeStr string) (ExperimentMode, error) {
+	switch modeStr {
+	case "Standard":
+		return StandardMode{}, nil
+	case "Replay":
+		return ReplayMode{}, nil
+	case "DynamicReplay":
+		return DynamicReplayMode{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported mode: %s", modeStr)
+	}
+}
+
+func CreateExperiments(cfg *ExperimentConfig) []ExperimentRunner {
+	var all []ExperimentRunner
+
+	for _, numType := range cfg.NumericalTypes {
+		for _, modeStr := range cfg.Modes {
+			mode, err := ParseExperimentMode(modeStr)
+			if err != nil {
+				fmt.Printf("⚠️ Skipping invalid mode %q: %v\n", modeStr, err)
+				continue
+			}
+
+			switch numType {
+			case "int":
+				all = append(all, &Experiment[int, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "int8":
+				all = append(all, &Experiment[int8, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "int16":
+				all = append(all, &Experiment[int16, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "int32":
+				all = append(all, &Experiment[int32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "int64":
+				all = append(all, &Experiment[int64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+
+			case "uint":
+				all = append(all, &Experiment[uint, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "uint8":
+				all = append(all, &Experiment[uint8, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "uint16":
+				all = append(all, &Experiment[uint16, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "uint32":
+				all = append(all, &Experiment[uint32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "uint64":
+				all = append(all, &Experiment[uint64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+
+			case "float32":
+				all = append(all, &Experiment[float32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+			case "float64":
+				all = append(all, &Experiment[float64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+
+			default:
+				fmt.Printf("⚠️ Unknown numeric type: %s\n", numType)
+			}
+		}
+	}
+
+	return all
+}
+
+func RunEpisodeLoop(cfg *ExperimentConfig) {
+	all := CreateExperiments(cfg)
+
+	for gen := 0; gen < cfg.Episodes; gen++ {
+		for _, exp := range all {
+			exp.SetGeneration(gen)
+			exp.GenerateVariants()
+			RunAgentsInPool(exp.SpawnAgents())
+		}
+		break
+	}
+}
+
+/*
 
 type SpectrumSaver struct {
 	TypeName  string // e.g. "float32"
@@ -24,6 +141,7 @@ type SpectrumSaver struct {
 // Main loop for evolutionary generation
 func RunEpisodeLoop(cfg *ExperimentConfig) {
 	fmt.Println("🔁 Starting Episode Loop...")
+
 	modes := []string{"Standard", "Replay", "DynamicReplay"}
 
 	for gen := 0; gen < cfg.Episodes; gen++ {
@@ -43,11 +161,11 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 				// Step 2: load base model on generation 0
 				if gen == 0 {
 					modelPath = filepath.Join("models", strconv.Itoa(gen), fmt.Sprintf("%s_%s.json", numType, mode))
-					/*netAny, err := paragon.LoadNamedNetworkFromJSONFile(modelPath)
+					*netAny, err := paragon.LoadNamedNetworkFromJSONFile(modelPath)
 					if err != nil {
 						fmt.Printf("❌ Failed to load base model from %s: %v\n", modelPath, err)
 						continue
-					}*/
+					}*
 
 				}
 
@@ -106,18 +224,31 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 						return nil
 					}
 
-					variantID := extractVariantIndex(d.Name()) // helper function
-					agentsToRun = append(agentsToRun, Agent{
-						ID:         fmt.Sprintf("%s_%s_variant_%d", numType, mode, variantID),
-						Generation: gen,
-						VariantID:  variantID,
-						Network: NamedNetwork{
-							TypeName: numType,
-							Mode:     mode,
-							Net:      netAny,
-						},
-						Config: cfg,
-					})
+					for _, pStr := range cfg.Planets {
+
+						pos, err := parseVec3(pStr)
+						if err != nil {
+							fmt.Printf("⚠️ bad planet vec %s: %v\n", pStr, err)
+							continue
+						}
+
+						variantID := d.Name() + pStr // helper function
+
+						agentsToRun = append(agentsToRun, Agent{
+							ID:         fmt.Sprintf("%s_%s_variant_%d", numType, mode, variantID),
+							Generation: gen,
+							VariantID:  variantID,
+							Network: NamedNetwork{
+								TypeName: numType,
+								Mode:     mode,
+								Net:      netAny,
+							},
+							Config:     cfg,
+							PlanetPos:  pos,
+							PlanetName: pStr,
+						})
+					}
+
 					return nil
 				})
 				if err != nil {
@@ -395,3 +526,12 @@ func extractVariantIndex(name string) int {
 	}
 	return n
 }
+
+func parseVec3(s string) (Vec3, error) {
+	var v Vec3
+	if _, err := fmt.Sscanf(s, "(%f,%f,%f)", &v.X, &v.Y, &v.Z); err != nil {
+		return v, err
+	}
+	return v, nil
+}
+*/

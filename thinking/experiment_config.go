@@ -9,6 +9,7 @@ import (
 type ExperimentConfig struct {
 	Name                      string           `json:"name"`
 	Description               string           `json:"description"`
+	Modes                     []string         `json:"modes"`
 	NumericalTypes            []string         `json:"numerical_types"`
 	Planets                   []string         `json:"planets"`
 	Episodes                  int              `json:"episodes"`

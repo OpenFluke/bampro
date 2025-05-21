@@ -1,7 +1,7 @@
 {
   "name": "Generalization_Spectrum_SurvivalTest",
   "description": "Test how different numerical types generalize using weight mutation spectrum and incremental distance-based checkpoint scoring.",
-
+  "modes": ["Standard", "Replay", "DynamicReplay"],
   "numerical_types": [
     "int",
     "int8",
@@ -42,7 +42,7 @@
 
   "movement": {
     "translation": {
-      "clamp": { "x": 0.25, "y": 0.25, "z": 0.25 },
+      "clamp": { "x": 5, "y": 5, "z": 5 },
       "actions_per_second": 10
     },
     "rotation": {

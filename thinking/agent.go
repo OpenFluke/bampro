@@ -12,9 +12,12 @@ import (
 type Agent struct {
 	ID         string
 	Generation int
-	VariantID  int
+	VariantID  string
 	Network    NamedNetwork
 	Config     *ExperimentConfig
+
+	PlanetName string
+	PlanetPos  Vec3
 }
 
 type Vec3 struct {
@@ -41,7 +44,7 @@ func runAgent(a Agent) {
 	fmt.Printf("🧠 [%s] Starting agent loop for %.0fs at %d APS\n", a.ID, lifespan.Seconds(), a.Config.Movement.Translation.ActionsPerSecond)
 
 	// Static dummy float64 input (shape: 1 row of 6 features)
-	dummyInput := [][]float64{{0.1, -0.2, 0.3, -0.4, 0.5, -0.6}}
+	dummyInput := [][]float64{{10.1, -10.2, 10.3, -10.4, 10.5, -10.6}}
 
 	position := Vec3{0, 0, 0}
 	start := time.Now()
@@ -72,6 +75,7 @@ func runAgent(a Agent) {
 				result := reflect.ValueOf(net).MethodByName("GetOutput").Call(nil)
 				if len(result) == 1 {
 					output := result[0].Interface().([]float64)
+					//fmt.Println(output)
 					if len(output) >= 3 {
 						dx := clamp(output[0], clampX)
 						dy := clamp(output[1], clampY)
@@ -86,9 +90,9 @@ func runAgent(a Agent) {
 				fmt.Printf("⚠️ [%s] Unsupported model type: %s\n", a.ID, reflect.TypeOf(a.Network.Net))
 			}
 
-			if tickCount%10 == 0 {
+			/*if tickCount%10 == 0 {
 				fmt.Printf("📍 [%s] Pos = (%.3f, %.3f, %.3f)\n", a.ID, position.X, position.Y, position.Z)
-			}
+			}*/
 
 		default:
 			if time.Since(start) > lifespan {
