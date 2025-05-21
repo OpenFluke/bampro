@@ -1,7 +1,14 @@
 // evolve.go
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+
+	paragon "github.com/OpenFluke/PARAGON"
+)
 
 type Numeric interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
@@ -46,6 +53,63 @@ func (e *Experiment[T, M]) SetGeneration(gen int) {
 func (e *Experiment[T, M]) GenerateVariants() {
 	// your logic
 	fmt.Println(e.Gen, e.NumType+e.Mode.String())
+	modelPath := ""
+	if e.Gen == 0 {
+		modelPath = filepath.Join("models", strconv.Itoa(e.Gen), fmt.Sprintf("%s_%s.json", e.NumType, e.Mode.String()))
+	}
+
+	fmt.Println(modelPath)
+
+	mutatedDir := filepath.Join("models", fmt.Sprint(e.Gen), fmt.Sprintf("mutated_%s_%s", e.NumType, e.Mode.String()))
+	if err := os.MkdirAll(mutatedDir, 0755); err != nil {
+		fmt.Printf("❌ Could not create folder: %s\n", mutatedDir)
+		return
+	}
+
+	// Skip if all already exist
+	if hasAllVariants(mutatedDir, e.Config.SpectrumSteps) {
+		fmt.Printf("✅ All variants already exist in %s\n", mutatedDir)
+	}
+
+	selectedModel, err := paragon.LoadNamedNetworkFromJSONFile(modelPath)
+	if err != nil {
+		fmt.Printf("❌ Failed to load base model from %s: %v\n", modelPath, err)
+		return
+	}
+
+	// 🚀 ASSERT that it's the correct *Network[T]
+	net, ok := selectedModel.(*paragon.Network[T])
+	if !ok {
+		fmt.Printf("⚠️ Type mismatch: expected *Network[%T], got %T\n", *new(T), selectedModel)
+		return
+	}
+
+	// Generate variants
+	for i := 0; i < e.Config.SpectrumSteps; i++ {
+		savePath := filepath.Join(mutatedDir, fmt.Sprintf("variant_%d.json", i))
+
+		// 💡 Skip if already exists
+		if _, err := os.Stat(savePath); err == nil {
+			fmt.Printf("⚠️ Skipping variant %d — already exists\n", i)
+			continue
+		}
+
+		// 🧬 Clone and mutate
+		var clone paragon.Network[T]
+		if err := clone.FromS(net.ToS()); err != nil {
+			fmt.Printf("❌ Failed to clone base model for variant %d: %v\n", i, err)
+			continue
+		}
+		clone.PerturbWeights(e.Config.SpectrumMaxStdDev, i)
+
+		// 💾 Save
+		if err := clone.SaveJSON(savePath); err != nil {
+			fmt.Printf("❌ Variant %d failed to save: %v\n", i, err)
+		} else {
+			fmt.Printf("💾 Saved variant: %s\n", savePath)
+		}
+	}
+
 }
 
 func (e *Experiment[T, M]) SpawnAgents() []Agent {
@@ -125,6 +189,16 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 		}
 		break
 	}
+}
+
+func hasAllVariants(dir string, steps int) bool {
+	for i := 0; i < steps; i++ {
+		variantPath := filepath.Join(dir, fmt.Sprintf("variant_%d.json", i))
+		if _, err := os.Stat(variantPath); os.IsNotExist(err) {
+			return false // missing at least one
+		}
+	}
+	return true
 }
 
 /*
@@ -429,15 +503,7 @@ func DiscoverBaseModelPathsForGen(gen int) []BaseModelInfo {
 	return models
 }
 
-func hasAllVariants(dir string, steps int) bool {
-	for i := 0; i < steps; i++ {
-		variantPath := filepath.Join(dir, fmt.Sprintf("variant_%d.json", i))
-		if _, err := os.Stat(variantPath); os.IsNotExist(err) {
-			return false // missing at least one
-		}
-	}
-	return true
-}
+
 
 func (s *SpectrumSaver) SaveSpectrumVariants() error {
 	outputDir := filepath.Join("models", fmt.Sprint(s.Gen), fmt.Sprintf("mutated_%s_%s", s.TypeName, s.Mode))
