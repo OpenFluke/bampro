@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -80,7 +81,57 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 					fmt.Printf("✅ All %d variants already exist in %s\n", cfg.SpectrumSteps, mutatedDir)
 				}
 
-				// TODO: for gen > 0 or post-gen-0: load mutated models and run evaluations
+				// ✅ Evaluate variants that don't yet have results
+				var agentsToRun []Agent
+
+				err := filepath.WalkDir(mutatedDir, func(path string, d fs.DirEntry, err error) error {
+					if err != nil || d.IsDir() {
+						return nil
+					}
+					if !strings.HasPrefix(d.Name(), "variant_") || !strings.HasSuffix(d.Name(), ".json") {
+						return nil
+					}
+
+					// Check if results exist
+					resultPath := strings.TrimSuffix(path, ".json") + "_results.json"
+					if _, err := os.Stat(resultPath); err == nil {
+						// Already evaluated
+						return nil
+					}
+
+					// Load unevaluated variant
+					netAny, err := paragon.LoadNamedNetworkFromJSONFile(path)
+					if err != nil {
+						fmt.Printf("❌ Failed to load variant %s: %v\n", d.Name(), err)
+						return nil
+					}
+
+					variantID := extractVariantIndex(d.Name()) // helper function
+					agentsToRun = append(agentsToRun, Agent{
+						ID:         fmt.Sprintf("%s_%s_variant_%d", numType, mode, variantID),
+						Generation: gen,
+						VariantID:  variantID,
+						Network: NamedNetwork{
+							TypeName: numType,
+							Mode:     mode,
+							Net:      netAny,
+						},
+						Config: cfg,
+					})
+					return nil
+				})
+				if err != nil {
+					fmt.Printf("❌ Failed scanning variant dir: %v\n", err)
+				}
+
+				if len(agentsToRun) > 0 {
+					fmt.Printf("🏃 Running %d agent(s) for %s_%s...\n", len(agentsToRun), numType, mode)
+
+					RunAgentsInPool(agentsToRun)
+				} else {
+					fmt.Printf("✅ All variants for %s_%s already evaluated.\n", numType, mode)
+				}
+
 			}
 		}
 
@@ -329,4 +380,18 @@ func saveVariantsForType[T paragon.Numeric](
 		}
 	}
 	return nil
+}
+
+func extractVariantIndex(name string) int {
+	// Expects: variant_0.json, variant_1.json, ...
+	name = strings.TrimSuffix(name, ".json")
+	parts := strings.Split(name, "_")
+	if len(parts) < 2 {
+		return -1
+	}
+	n, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return -1
+	}
+	return n
 }

@@ -74,7 +74,7 @@ func main() {
 	if cfg.AutoState {
 		// Try to load existing best model state
 		fmt.Println("Auto starting")
-		RunEpisodeLoop(experimentConfig)
+		//RunEpisodeLoop(experimentConfig)
 	}
 
 	go startWebSocketServer() // Starts WebSocket server on port 9001

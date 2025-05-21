@@ -72,5 +72,7 @@
   "evaluation_spawns_per_planet": 5,
 
   "auto_launch": true,
+  "load_balance": true,
+  "max_needed": 200,
   "notes": "Each numerical type spawns a best model which is mutated across a defined spectrum and deployed to every planet. Scoring is continuous and checkpoint-based."
 }

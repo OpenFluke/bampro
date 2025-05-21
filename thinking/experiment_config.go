@@ -25,6 +25,8 @@ type ExperimentConfig struct {
 	Notes                     string           `json:"notes"`
 	AutoState                 bool             `json:"auto_state"`
 	EvaluationSpawnsPerPlanet int              `json:"evaluation_spawns_per_planet"`
+	MaxNeeded                 int              `json:"max_needed"`
+	LoadBalance               bool             `json:"load_balance"`
 }
 
 // Nested structs
