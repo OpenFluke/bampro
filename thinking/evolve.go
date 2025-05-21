@@ -2,12 +2,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	paragon "github.com/OpenFluke/PARAGON"
+	"github.com/OpenFluke/discover"
 )
 
 type Numeric interface {
@@ -43,7 +46,7 @@ type Experiment[T Numeric, M ExperimentMode] struct {
 type ExperimentRunner interface {
 	SetGeneration(gen int)
 	GenerateVariants()
-	SpawnAgents() []Agent
+	SpawnAgentNames()
 }
 
 func (e *Experiment[T, M]) SetGeneration(gen int) {
@@ -112,9 +115,61 @@ func (e *Experiment[T, M]) GenerateVariants() {
 
 }
 
-func (e *Experiment[T, M]) SpawnAgents() []Agent {
-	// your logic
-	return []Agent{}
+func (e *Experiment[T, M]) SpawnAgentNames() {
+	mutatedDir := filepath.Join("models", strconv.Itoa(e.Gen), fmt.Sprintf("mutated_%s_%s", e.NumType, e.Mode.String()))
+	namesDir := filepath.Join(mutatedDir, "agent_names")
+
+	// Ensure names directory exists
+	if err := os.MkdirAll(namesDir, 0755); err != nil {
+		fmt.Printf("❌ Could not create agent_names dir: %v\n", err)
+		return
+	}
+
+	entries, err := os.ReadDir(mutatedDir)
+	if err != nil {
+		fmt.Printf("❌ Failed to read mutated dir: %v\n", err)
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, "variant_") || !strings.HasSuffix(name, ".json") {
+			continue
+		}
+
+		variantName := strings.TrimSuffix(name, ".json")
+		namesFile := filepath.Join(namesDir, variantName+".json")
+
+		if _, err := os.Stat(namesFile); err == nil {
+			fmt.Printf("✅ Skipping %s — names file already exists\n", variantName)
+			continue
+		}
+
+		fullPath := filepath.Join(mutatedDir, name)
+		var unitNames []string
+
+		for _, planetStr := range e.Config.Planets {
+			for i := 0; i < e.Config.EvaluationSpawnsPerPlanet; i++ {
+				unitName := discover.GenerateUnitID(fullPath, "openfluke.com", e.Gen, len(unitNames))
+				unitNames = append(unitNames, unitName)
+				fmt.Printf("🚀 Spawn: %s | Planet=%s | Rep=%d\n", unitName, planetStr, i)
+			}
+		}
+
+		data, err := json.MarshalIndent(unitNames, "", "  ")
+		if err != nil {
+			fmt.Printf("❌ Failed to marshal names: %v\n", err)
+			continue
+		}
+		if err := os.WriteFile(namesFile, data, 0644); err != nil {
+			fmt.Printf("❌ Failed to write names file: %v\n", err)
+		} else {
+			fmt.Printf("💾 Saved unit names: %s\n", namesFile)
+		}
+	}
 }
 
 func ParseExperimentMode(modeStr string) (ExperimentMode, error) {
@@ -185,7 +240,7 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 		for _, exp := range all {
 			exp.SetGeneration(gen)
 			exp.GenerateVariants()
-			RunAgentsInPool(exp.SpawnAgents())
+			exp.SpawnAgentNames()
 		}
 		break
 	}

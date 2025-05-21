@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/OpenFluke/PARAGON v0.9.1-0.20250521114904-7e920fb5d27f // indirect
-	github.com/OpenFluke/discover v0.0.0-20250519003307-f6cc735546b9 // indirect
+	github.com/OpenFluke/discover v0.0.0-20250521221225-3fd66d976ae2 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/fasthttp/websocket v1.5.3 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect

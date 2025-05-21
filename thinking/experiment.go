@@ -90,6 +90,7 @@ func loadAndRegister[T paragon.Numeric](typeName, mode, path string) {
 }
 
 func runBenchmarks(cfg *ExperimentConfig) {
+	fmt.Println("starting benchmark")
 	if len(cfg.NumericalTypes) == 0 {
 		fmt.Println("⚠️  no numerical types – skipping benchmarks")
 		return
@@ -199,4 +200,6 @@ func runBenchmarks(cfg *ExperimentConfig) {
 		_ = os.WriteFile(jsonFile, b, 0o644)
 		fmt.Printf("✅  %s benchmark saved (%d clones, %d APS)\n", t, clones, aps)
 	}
+
+	fmt.Println("finished benchmark")
 }
