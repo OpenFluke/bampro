@@ -55,7 +55,7 @@ type ExperimentRunner interface {
 	SpawnAgentNames()
 	SpawnAgentsOnPlanets(variantNum int)
 	UnfreezeAgents()
-	RunAndMonitorAgents()
+	RunAndMonitorAgents(variantNum int)
 	DespawnAgents()
 }
 
@@ -398,7 +398,7 @@ func CreateExperiments(cfg *ExperimentConfig) []ExperimentRunner {
 	return all
 }
 
-func (e *Experiment[T, M]) RunAndMonitorAgents() {
+func (e *Experiment[T, M]) RunAndMonitorAgents(variantNum int) {
 	if len(e.Cubes) == 0 {
 		fmt.Println("⚠️ No agents to run.")
 		return
@@ -509,7 +509,8 @@ func (e *Experiment[T, M]) RunAndMonitorAgents() {
 		fmt.Sprintf("mutated_%s_%s", e.NumType, e.Mode.String()), "results")
 	_ = os.MkdirAll(resultsDir, 0755)
 
-	summaryPath := filepath.Join(resultsDir, "summary.json")
+	summaryPath := filepath.Join(resultsDir, fmt.Sprintf("variant_%d_summary.json", variantNum))
+
 	if err := os.WriteFile(summaryPath, mustMarshalIndent(summary), 0644); err != nil {
 		fmt.Printf("❌ Failed to write summary: %v\n", err)
 	} else {
@@ -540,7 +541,7 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 				/*runDuration := 5 * time.Second
 				fmt.Printf("⏳ Letting agents run for %s...\n", runDuration)
 				time.Sleep(runDuration)*/
-				exp.RunAndMonitorAgents()
+				exp.RunAndMonitorAgents(i)
 				exp.DespawnAgents()
 				//exP.RunExperiment()
 				//exp.Despawn
