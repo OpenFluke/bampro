@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	paragon "github.com/OpenFluke/PARAGON"
@@ -57,6 +58,9 @@ type ExperimentRunner interface {
 	UnfreezeAgents()
 	RunAndMonitorAgents(variantNum int)
 	DespawnAgents()
+	NukeAllAgents()
+	GetNumType() string
+	GetMode() string
 }
 
 func (e *Experiment[T, M]) SetGeneration(gen int) {
@@ -215,7 +219,9 @@ func (e *Experiment[T, M]) SpawnAgentsOnPlanets(variantNum int) {
 	const spawnRadius = 120.0
 	idx := 0
 
-	var cubes []*construct.Cube[T] // 👈 Hold all spawned cubes
+	var cubes []*construct.Cube[T]
+	var cubesMu sync.Mutex
+	var wg sync.WaitGroup
 
 	// Load model for this variant
 	modelPath := filepath.Join(
@@ -255,8 +261,8 @@ func (e *Experiment[T, M]) SpawnAgentsOnPlanets(variantNum int) {
 
 		for i := 0; i < spawnsPerPlanet && idx < len(unitNames); i++ {
 			name := unitNames[idx]
-			idx++
 			spawn := positions[i]
+			idx++
 
 			cube := &construct.Cube[T]{
 				Name:       name,
@@ -270,20 +276,29 @@ func (e *Experiment[T, M]) SpawnAgentsOnPlanets(variantNum int) {
 				ClampMax:   20.0,
 			}
 
-			if err := cube.Spawn(); err != nil {
-				fmt.Printf("❌ Spawn failed for %s: %v\n", name, err)
-			} else {
-				fmt.Printf("🚀 Spawned %s on %s at (%.2f, %.2f, %.2f)\n", name, planetStr, spawn[0], spawn[1], spawn[2])
-				cubes = append(cubes, cube)
-			}
+			wg.Add(1)
+			go func(c *construct.Cube[T], planet string, pos []float64) {
+				defer wg.Done()
+				if err := c.Spawn(); err != nil {
+					fmt.Printf("❌ Spawn failed for %s: %v\n", c.Name, err)
+					return
+				}
+				fmt.Printf("🚀 Spawned %s on %s at (%.2f, %.2f, %.2f)\n", c.Name, planet, pos[0], pos[1], pos[2])
+
+				// Thread-safe append
+				cubesMu.Lock()
+				cubes = append(cubes, c)
+				cubesMu.Unlock()
+			}(cube, planetStr, spawn)
 		}
 	}
+
+	wg.Wait()
 
 	if idx < len(unitNames) {
 		fmt.Printf("⚠️ %d unit names were unused\n", len(unitNames)-idx)
 	}
 
-	// 🔐 Save references to all cubes
 	e.Cubes = cubes
 }
 
@@ -318,6 +333,21 @@ func (e *Experiment[T, M]) DespawnAgents() {
 	}
 
 	// Optional: clear out the cube references
+	e.Cubes = nil
+}
+
+func (e *Experiment[T, M]) NukeAllAgents() {
+	fmt.Println("💥 Nuking all agents on the server...")
+
+	construct := &construct.Construct[T]{
+		ServerAddr: e.ServerAddr,
+		AuthPass:   e.AuthPass,
+		Delimiter:  e.Delimiter,
+	}
+
+	construct.DestroyAllCubes()
+
+	// Clear cube references just in case
 	e.Cubes = nil
 }
 
@@ -526,6 +556,14 @@ func mustMarshalIndent(v any) []byte {
 	return data
 }
 
+func (e *Experiment[T, M]) GetNumType() string {
+	return e.NumType
+}
+
+func (e *Experiment[T, M]) GetMode() string {
+	return e.Mode.String()
+}
+
 func RunEpisodeLoop(cfg *ExperimentConfig) {
 	all := CreateExperiments(cfg)
 
@@ -535,6 +573,24 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 			exp.GenerateVariants()
 			exp.SpawnAgentNames()
 			for i := 0; i < cfg.SpectrumSteps; i++ {
+
+				numType := exp.GetNumType()
+				mode := exp.GetMode()
+
+				summaryPath := filepath.Join("models", strconv.Itoa(gen),
+					fmt.Sprintf("mutated_%s_%s", numType, mode),
+					"results", fmt.Sprintf("variant_%d_summary.json", i))
+
+				if _, err := os.Stat(summaryPath); err == nil {
+					fmt.Printf("⏩ Skipping variant %d for %s_%s — summary already exists\n", i, numType, mode)
+
+					//runDuration := 50 * time.Second
+					//fmt.Printf("⏳ Letting agents run for %s...\n", runDuration)
+					//time.Sleep(runDuration)
+
+					continue
+				}
+
 				exp.SpawnAgentsOnPlanets(i)
 				exp.UnfreezeAgents()
 				// 🕒 Allow agents to run for some time before despawning
@@ -542,7 +598,8 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 				fmt.Printf("⏳ Letting agents run for %s...\n", runDuration)
 				time.Sleep(runDuration)*/
 				exp.RunAndMonitorAgents(i)
-				exp.DespawnAgents()
+				exp.NukeAllAgents()
+				//exp.DespawnAgents()
 				//exP.RunExperiment()
 				//exp.Despawn
 			}
