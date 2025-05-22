@@ -115,6 +115,12 @@ func (e *Experiment[T, M]) GenerateVariants() {
 		return
 	}
 
+	champPath := filepath.Join("models", "champion",
+		fmt.Sprintf("%s_%s.json", e.NumType, e.Mode.String()))
+	if data, err := os.ReadFile(champPath); err == nil {
+		_ = os.WriteFile(filepath.Join(mutatedDir, "variant_0.json"), data, 0644)
+	}
+
 	// Skip if all already exist
 	if hasAllVariants(mutatedDir, e.Config.SpectrumSteps) {
 		fmt.Printf("✅ All variants already exist in %s\n", mutatedDir)

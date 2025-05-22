@@ -1,7 +1,9 @@
 package main
 
 import (
+	"io"
 	"math"
+	"os"
 	"sort"
 )
 
@@ -85,4 +87,25 @@ func findPlanetCenter(pos []float64, rawPlanets []string) []float64 {
 		}
 	}
 	return closest
+}
+
+func copyFile(src, dst string) error {
+	tmp := dst + ".tmp"
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	out, err := os.Create(tmp)
+	if err != nil {
+		in.Close()
+		return err
+	}
+	if _, err = io.Copy(out, in); err != nil {
+		out.Close()
+		in.Close()
+		return err
+	}
+	out.Close()
+	in.Close()
+	return os.Rename(tmp, dst) // atomic on POSIX
 }
