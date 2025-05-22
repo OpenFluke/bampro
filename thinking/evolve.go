@@ -860,8 +860,13 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 
 	for gen := 0; gen < cfg.Episodes; gen++ {
 		for _, exp := range all {
+			AppendStatus(gen, exp.GetNumType(), exp.GetMode(), -1, "Generating", "Starting new generation")
+
 			exp.SetGeneration(gen)
 			exp.GenerateVariants()
+
+			AppendStatus(gen, exp.GetNumType(), exp.GetMode(), -1, "Generated", "Variants created")
+
 			exp.SpawnAgentNames()
 			for i := 0; i < cfg.SpectrumSteps; i++ {
 
@@ -873,6 +878,11 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 					"results", fmt.Sprintf("variant_%d_summary.json", i))
 
 				if _, err := os.Stat(summaryPath); err == nil {
+					AppendStatus(gen, numType, mode, i, "Skipped", "Summary already exists")
+					continue
+				}
+
+				if _, err := os.Stat(summaryPath); err == nil {
 					fmt.Printf("⏩ Skipping variant %d for %s_%s — summary already exists\n", i, numType, mode)
 
 					//runDuration := 50 * time.Second
@@ -882,14 +892,25 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 					continue
 				}
 
+				AppendStatus(gen, numType, mode, i, "SpawningAgents", "Spawning agents for variant")
+
 				exp.SpawnAgentsOnPlanets(i)
 				exp.UnfreezeAgents()
+
+				AppendStatus(gen, numType, mode, i, "Running", "Agents running...")
+
 				// 🕒 Allow agents to run for some time before despawning
 				/*runDuration := 5 * time.Second
 				fmt.Printf("⏳ Letting agents run for %s...\n", runDuration)
 				time.Sleep(runDuration)*/
 				exp.RunAndMonitorAgents(i)
+
+				AppendStatus(gen, numType, mode, i, "Finished", "Run and monitor completed")
+
 				exp.NukeAllAgents()
+
+				AppendStatus(gen, numType, mode, i, "Cleaned", "Agents nuked")
+
 				//exp.DespawnAgents()
 				//exP.RunExperiment()
 				//exp.Despawn

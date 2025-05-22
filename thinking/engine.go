@@ -79,5 +79,7 @@ func main() {
 
 	go startWebSocketServer() // Starts WebSocket server on port 9001
 	go startStatusPoller()
+	go startStatusBroadcastLoop()
+
 	host()
 }

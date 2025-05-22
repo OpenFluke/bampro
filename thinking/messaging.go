@@ -13,9 +13,12 @@ type TypedMessage struct {
 
 // Outbound message types
 const (
-	TypeStatusUpdate   = "status_update"
-	TypeExperimentConf = "experiment_config"
-	TypeExperimentDone = "experiment_done"
+	TypeStatusUpdate      = "status_update"
+	TypeExperimentConf    = "experiment_config"
+	TypeExperimentDone    = "experiment_done"
+	TypeStatusDelta       = "status_delta"
+	TypeExperimentRunning = "running_update"
+	TypeScoresOverview    = "scores_overview"
 )
 
 // SerializeTyped returns a JSON-encoded message of {type, data}
