@@ -33,7 +33,7 @@
 
   "network_config": {
     "layers": [
-      { "width": 6, "height": 1, "activation": "linear" },
+      { "width": 3, "height": 1, "activation": "linear" },
       { "width": 128, "height": 1, "activation": "relu" },
       { "width": 128, "height": 1, "activation": "relu" },
       { "width": 3, "height": 1, "activation": "tanh" }
@@ -53,16 +53,14 @@
   },
 
   "scoring": {
-    "type": "incremental_distance_tracking",
-    "evaluate_every_tick": true,
-    "method": "inverse_distance",
-    "reward_formula": "1 / (1 + d)",
-    "accumulate_over_life": true,
+    "type": "planet_vertical_progress",
+    "method": "delta_y",
+    "reward_formula": "y_final - y_start",
+    "accumulate_over_life": false,
     "score_if_timeout": true,
     "normalize": false,
-    "notes": "Agent scores every tick based on distance to nearest checkpoint."
+    "notes": "Agent gets scored by increase in Y-position from spawn (e.g. climbing up the planet)."
   },
-
   "evaluation": {
     "per_planet_tracking": true,
     "save_final_distances": true,

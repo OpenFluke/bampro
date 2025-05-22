@@ -16,6 +16,10 @@ github.com/OpenFluke/PARAGON v0.9.1-0.20250521064953-70f41e5891aa h1:9Z4zsekZWe4
 github.com/OpenFluke/PARAGON v0.9.1-0.20250521064953-70f41e5891aa/go.mod h1:IFGHj9iNgvZN1LMbJkRropzz6cnTqb/DN94iB7GqR6Y=
 github.com/OpenFluke/PARAGON v0.9.1-0.20250521114904-7e920fb5d27f h1:nJm2cXtmAcAcgZH/f6XRWtQ9fZ88Mrcb5trtaH7LhDc=
 github.com/OpenFluke/PARAGON v0.9.1-0.20250521114904-7e920fb5d27f/go.mod h1:IFGHj9iNgvZN1LMbJkRropzz6cnTqb/DN94iB7GqR6Y=
+github.com/OpenFluke/PARAGON v0.9.1-0.20250522035642-04c02c6014bd h1:e4L4CgInno950WQZOHOTK1+yt7dC79zcnNPAlNZyDBM=
+github.com/OpenFluke/PARAGON v0.9.1-0.20250522035642-04c02c6014bd/go.mod h1:IFGHj9iNgvZN1LMbJkRropzz6cnTqb/DN94iB7GqR6Y=
+github.com/OpenFluke/PARAGON v0.9.1-0.20250522040147-8468abebfdbb h1:Ap91wqv5mOCvyIkPIU0wKknIynqh3QO3a4+d1dHghtg=
+github.com/OpenFluke/PARAGON v0.9.1-0.20250522040147-8468abebfdbb/go.mod h1:IFGHj9iNgvZN1LMbJkRropzz6cnTqb/DN94iB7GqR6Y=
 github.com/OpenFluke/construct v0.0.0-20250522022037-fd06a00f6c84 h1:OyxPcGciZUWA/Bb99pffDH66mb3tMbU9rjQcgo/wXvY=
 github.com/OpenFluke/construct v0.0.0-20250522022037-fd06a00f6c84/go.mod h1:qx4nR0SqetaFLLcvn1G9aVxLJogY5GqM6CnCcF7lgqA=
 github.com/OpenFluke/discover v0.0.0-20250519003307-f6cc735546b9 h1:dmWyyO3gSZqwh/VtL9JlPxCGEIzY47nAv9Hg5wXmmTA=

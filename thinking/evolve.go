@@ -55,7 +55,7 @@ type ExperimentRunner interface {
 	SpawnAgentNames()
 	SpawnAgentsOnPlanets(variantNum int)
 	UnfreezeAgents()
-	//RunAndMonitorAgents()
+	RunAndMonitorAgents()
 	DespawnAgents()
 }
 
@@ -398,6 +398,133 @@ func CreateExperiments(cfg *ExperimentConfig) []ExperimentRunner {
 	return all
 }
 
+func (e *Experiment[T, M]) RunAndMonitorAgents() {
+	if len(e.Cubes) == 0 {
+		fmt.Println("⚠️ No agents to run.")
+		return
+	}
+
+	type result struct {
+		Name         string
+		Planet       string
+		PlanetCenter []float64
+		Goal         []float64
+		InitialPos   []float64
+		FinalPos     []float64
+		InitialDist  float64
+		FinalDist    float64
+		Progress     float64
+		DeltaY       float64
+	}
+
+	planetSpacing := 800.0
+	topOffset := []float64{0, 100, 0} // goal above center
+
+	initialPos := make(map[string][]float64)
+	planetLookup := make(map[string]string)
+	goalLookup := make(map[string][]float64)
+
+	// Prepare mappings
+	idx := 0
+	for _, planetStr := range e.Config.Planets {
+		planetPos, err := parseVec3(planetStr)
+		if err != nil {
+			continue
+		}
+		center := []float64{
+			planetPos.X * planetSpacing,
+			planetPos.Y * planetSpacing,
+			planetPos.Z * planetSpacing,
+		}
+		goal := []float64{
+			center[0] + topOffset[0],
+			center[1] + topOffset[1],
+			center[2] + topOffset[2],
+		}
+
+		for i := 0; i < e.Config.EvaluationSpawnsPerPlanet; i++ {
+			if idx >= len(e.Cubes) {
+				break
+			}
+			cube := e.Cubes[idx]
+			initialPos[cube.Name] = append([]float64{}, cube.Position...)
+			planetLookup[cube.Name] = planetStr
+			goalLookup[cube.Name] = goal
+			idx++
+		}
+	}
+
+	// Create construct and run pulsing
+	c := &construct.Construct[T]{
+		ServerAddr: e.ServerAddr,
+		AuthPass:   e.AuthPass,
+		Delimiter:  e.Delimiter,
+		Cubes:      e.Cubes,
+	}
+	duration := 10 * time.Second
+	fmt.Printf("⚡ Pulsing agents for %v...\n", duration)
+	c.StartPulsing(10, duration)
+
+	// Evaluate progress
+	var results []result
+	var progresses []float64
+
+	for _, cube := range e.Cubes {
+		_ = cube.RefreshPosition()
+		start := initialPos[cube.Name]
+		end := cube.Position
+		goal := goalLookup[cube.Name]
+		planet := planetLookup[cube.Name]
+
+		initialDist := distance(start, goal)
+		finalDist := distance(end, goal)
+		progress := initialDist - finalDist
+
+		results = append(results, result{
+			Name:         cube.Name,
+			Planet:       planet,
+			PlanetCenter: goal, // technically goal is above center, but fine here
+			Goal:         goal,
+			InitialPos:   start,
+			FinalPos:     end,
+			InitialDist:  initialDist,
+			FinalDist:    finalDist,
+			Progress:     progress,
+			DeltaY:       end[1] - start[1],
+		})
+		progresses = append(progresses, progress)
+	}
+
+	// Build summary
+	summary := map[string]any{
+		"mean_progress":   Mean(progresses),
+		"median_progress": Median(progresses),
+		"max_progress":    Max(progresses),
+		"min_progress":    Min(progresses),
+		"results":         results,
+	}
+
+	// Save
+	resultsDir := filepath.Join("models", strconv.Itoa(e.Gen),
+		fmt.Sprintf("mutated_%s_%s", e.NumType, e.Mode.String()), "results")
+	_ = os.MkdirAll(resultsDir, 0755)
+
+	summaryPath := filepath.Join(resultsDir, "summary.json")
+	if err := os.WriteFile(summaryPath, mustMarshalIndent(summary), 0644); err != nil {
+		fmt.Printf("❌ Failed to write summary: %v\n", err)
+	} else {
+		fmt.Printf("✅ Saved progress summary: %s\n", summaryPath)
+	}
+}
+
+func mustMarshalIndent(v any) []byte {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
 func RunEpisodeLoop(cfg *ExperimentConfig) {
 	all := CreateExperiments(cfg)
 
@@ -410,10 +537,10 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 				exp.SpawnAgentsOnPlanets(i)
 				exp.UnfreezeAgents()
 				// 🕒 Allow agents to run for some time before despawning
-				runDuration := 5 * time.Second
+				/*runDuration := 5 * time.Second
 				fmt.Printf("⏳ Letting agents run for %s...\n", runDuration)
-				time.Sleep(runDuration)
-
+				time.Sleep(runDuration)*/
+				exp.RunAndMonitorAgents()
 				exp.DespawnAgents()
 				//exP.RunExperiment()
 				//exp.Despawn
