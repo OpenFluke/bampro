@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -61,6 +62,14 @@ type ExperimentRunner interface {
 	NukeAllAgents()
 	GetNumType() string
 	GetMode() string
+	AggregateVariantResults()
+}
+
+var bestPerExperiment []struct {
+	NumType      string
+	Mode         string
+	VariantIndex string
+	Score        float64
 }
 
 func (e *Experiment[T, M]) SetGeneration(gen int) {
@@ -564,6 +573,176 @@ func (e *Experiment[T, M]) GetMode() string {
 	return e.Mode.String()
 }
 
+func (e *Experiment[T, M]) AggregateVariantResults() {
+	resultsDir := filepath.Join("models", strconv.Itoa(e.Gen),
+		fmt.Sprintf("mutated_%s_%s", e.NumType, e.Mode.String()), "results")
+
+	outputDir := filepath.Join("models", strconv.Itoa(e.Gen), "total_results")
+	outputPath := filepath.Join(outputDir, fmt.Sprintf("%s_%s.json", e.NumType, e.Mode.String()))
+
+	if _, err := os.Stat(outputPath); err == nil {
+		fmt.Printf("📄 Aggregated results already exist: %s — skipping\n", outputPath)
+		return
+	}
+
+	type rankedResult struct {
+		Variant      string  `json:"variant"`
+		MeanProgress float64 `json:"mean_progress"`
+	}
+
+	var results []rankedResult
+
+	entries, err := os.ReadDir(resultsDir)
+	if err != nil {
+		fmt.Printf("❌ Failed to read results directory: %v\n", err)
+		return
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasPrefix(name, "variant_") || !strings.HasSuffix(name, "_summary.json") {
+			continue
+		}
+
+		path := filepath.Join(resultsDir, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Printf("⚠️ Failed to read summary: %s\n", path)
+			continue
+		}
+
+		var summary map[string]any
+		if err := json.Unmarshal(data, &summary); err != nil {
+			fmt.Printf("⚠️ Failed to parse JSON: %s\n", path)
+			continue
+		}
+
+		meanVal, ok := summary["mean_progress"].(float64)
+		if !ok {
+			fmt.Printf("⚠️ mean_progress missing or not float in: %s\n", path)
+			continue
+		}
+
+		results = append(results, rankedResult{
+			Variant:      strings.TrimSuffix(strings.TrimPrefix(name, "variant_"), "_summary.json"),
+			MeanProgress: meanVal,
+		})
+	}
+
+	if len(results) == 0 {
+		fmt.Printf("⚠️ No valid results found for %s_%s\n", e.NumType, e.Mode.String())
+		return
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].MeanProgress > results[j].MeanProgress
+	})
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		fmt.Printf("❌ Failed to create output directory: %v\n", err)
+		return
+	}
+
+	data, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		fmt.Printf("❌ Failed to marshal final results: %v\n", err)
+		return
+	}
+
+	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+		fmt.Printf("❌ Failed to write aggregated results: %v\n", err)
+		return
+	}
+
+	fmt.Printf("✅ Saved ordered results for %s_%s → %s\n", e.NumType, e.Mode.String(), outputPath)
+}
+
+func SaveFullResultsIfNotExists(gen int) {
+	totalResultsDir := filepath.Join("models", strconv.Itoa(gen), "total_results")
+	fullResultsPath := filepath.Join(totalResultsDir, "full_results.json")
+
+	if _, err := os.Stat(fullResultsPath); err == nil {
+		fmt.Printf("📄 full_results.json already exists in %s — skipping\n", totalResultsDir)
+		return
+	}
+
+	entries, err := os.ReadDir(totalResultsDir)
+	if err != nil {
+		fmt.Printf("❌ Failed to read total_results directory: %v\n", err)
+		return
+	}
+
+	type topResult struct {
+		NumType      string  `json:"num_type"`
+		Mode         string  `json:"mode"`
+		VariantIndex string  `json:"variant"`
+		Score        float64 `json:"mean_progress"`
+	}
+
+	var topVariants []topResult
+
+	for _, entry := range entries {
+		name := entry.Name()
+
+		if name == "full_results.json" || !strings.HasSuffix(name, ".json") {
+			continue
+		}
+
+		parts := strings.Split(strings.TrimSuffix(name, ".json"), "_")
+		if len(parts) < 2 {
+			fmt.Printf("⚠️ Unexpected result file name format: %s\n", name)
+			continue
+		}
+		numType := parts[0]
+		mode := parts[1]
+
+		data, err := os.ReadFile(filepath.Join(totalResultsDir, name))
+		if err != nil {
+			fmt.Printf("⚠️ Failed to read: %s\n", name)
+			continue
+		}
+
+		var variants []struct {
+			Variant      string  `json:"variant"`
+			MeanProgress float64 `json:"mean_progress"`
+		}
+		if err := json.Unmarshal(data, &variants); err != nil || len(variants) == 0 {
+			fmt.Printf("⚠️ Failed to parse or empty: %s\n", name)
+			continue
+		}
+
+		top := variants[0]
+		topVariants = append(topVariants, topResult{
+			NumType:      numType,
+			Mode:         mode,
+			VariantIndex: top.Variant,
+			Score:        top.MeanProgress,
+		})
+	}
+
+	if len(topVariants) == 0 {
+		fmt.Printf("⚠️ No valid top variants found for Gen %d\n", gen)
+		return
+	}
+
+	sort.Slice(topVariants, func(i, j int) bool {
+		return topVariants[i].Score > topVariants[j].Score
+	})
+
+	data, err := json.MarshalIndent(topVariants, "", "  ")
+	if err != nil {
+		fmt.Printf("❌ Failed to marshal full_results: %v\n", err)
+		return
+	}
+
+	if err := os.WriteFile(fullResultsPath, data, 0644); err != nil {
+		fmt.Printf("❌ Failed to write full_results.json: %v\n", err)
+		return
+	}
+
+	fmt.Printf("✅ Saved full_results.json for Gen %d → %s\n", gen, fullResultsPath)
+}
+
 func RunEpisodeLoop(cfg *ExperimentConfig) {
 	all := CreateExperiments(cfg)
 
@@ -603,7 +782,12 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 				//exP.RunExperiment()
 				//exp.Despawn
 			}
+
+			// ⏫ After all variants for this Experiment are done, aggregate results
+			exp.AggregateVariantResults()
+
 		}
+		SaveFullResultsIfNotExists(gen)
 		break
 	}
 }
