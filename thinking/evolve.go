@@ -772,6 +772,89 @@ func SaveFullResultsIfNotExists(gen int) {
 	fmt.Printf("✅ Saved full_results.json for Gen %d → %s\n", gen, fullResultsPath)
 }
 
+func UpdateChampionIfBetter(gen int, numType string, mode string) {
+	championPath := filepath.Join("models", "champion", fmt.Sprintf("%s_%s.json", numType, mode))
+	bestFromGenPath := filepath.Join("models", strconv.Itoa(gen), "total_results", fmt.Sprintf("%s_%s.json", numType, mode))
+
+	data, err := os.ReadFile(bestFromGenPath)
+	if err != nil {
+		fmt.Printf("❌ Could not read best result file for %s_%s\n", numType, mode)
+		return
+	}
+
+	var ranked []struct {
+		Variant      string  `json:"variant"`
+		MeanProgress float64 `json:"mean_progress"`
+	}
+	if err := json.Unmarshal(data, &ranked); err != nil || len(ranked) == 0 {
+		fmt.Printf("⚠️ Could not parse best variant for %s_%s\n", numType, mode)
+		return
+	}
+
+	newScore := ranked[0].MeanProgress
+	newVariant := ranked[0].Variant
+	newModelPath := filepath.Join("models", strconv.Itoa(gen),
+		fmt.Sprintf("mutated_%s_%s", numType, mode),
+		fmt.Sprintf("variant_%s.json", newVariant))
+
+	newModelData, err := os.ReadFile(newModelPath)
+	if err != nil {
+		fmt.Printf("❌ Failed to read new top model: %v\n", err)
+		return
+	}
+
+	overwrite := true
+
+	// If champion exists, compare scores
+	if _, err := os.Stat(championPath); err == nil {
+		champData, err := os.ReadFile(championPath)
+		if err == nil {
+			// Check which generation this champion model came from
+			for g := gen; g >= 0; g-- {
+				resultsPath := filepath.Join("models", strconv.Itoa(g), "total_results", fmt.Sprintf("%s_%s.json", numType, mode))
+				r, err := os.ReadFile(resultsPath)
+				if err != nil {
+					continue
+				}
+
+				var all []struct {
+					Variant      string  `json:"variant"`
+					MeanProgress float64 `json:"mean_progress"`
+				}
+				if err := json.Unmarshal(r, &all); err != nil {
+					continue
+				}
+
+				for _, entry := range all {
+					champPathFromGen := filepath.Join("models", strconv.Itoa(g),
+						fmt.Sprintf("mutated_%s_%s", numType, mode),
+						fmt.Sprintf("variant_%s.json", entry.Variant))
+
+					if champModel, err := os.ReadFile(champPathFromGen); err == nil && string(champModel) == string(champData) {
+						if entry.MeanProgress > newScore {
+							fmt.Printf("⚖️ Champion still better (%.4f > %.4f) — skipping update for %s_%s\n", entry.MeanProgress, newScore, numType, mode)
+							overwrite = false
+						}
+						break
+					}
+				}
+				if !overwrite {
+					break
+				}
+			}
+		}
+	}
+
+	if overwrite {
+		_ = os.MkdirAll(filepath.Dir(championPath), 0755)
+		if err := os.WriteFile(championPath, newModelData, 0644); err != nil {
+			fmt.Printf("❌ Failed to write new champion: %v\n", err)
+		} else {
+			fmt.Printf("👑 Updated champion for %s_%s → variant %s (score: %.4f)\n", numType, mode, newVariant, newScore)
+		}
+	}
+}
+
 func RunEpisodeLoop(cfg *ExperimentConfig) {
 	all := CreateExperiments(cfg)
 
@@ -814,10 +897,11 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 
 			// ⏫ After all variants for this Experiment are done, aggregate results
 			exp.AggregateVariantResults()
-
+			UpdateChampionIfBetter(gen, exp.GetNumType(), exp.GetMode())
 		}
 		SaveFullResultsIfNotExists(gen)
 		//break
+
 	}
 }
 
