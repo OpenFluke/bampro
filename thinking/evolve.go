@@ -79,9 +79,32 @@ func (e *Experiment[T, M]) SetGeneration(gen int) {
 func (e *Experiment[T, M]) GenerateVariants() {
 	// your logic
 	fmt.Println(e.Gen, e.NumType+e.Mode.String())
-	modelPath := ""
+	var modelPath string
+
 	if e.Gen == 0 {
 		modelPath = filepath.Join("models", strconv.Itoa(e.Gen), fmt.Sprintf("%s_%s.json", e.NumType, e.Mode.String()))
+	} else {
+		// Load top-performing variant from previous generation
+		totalResultsPath := filepath.Join("models", strconv.Itoa(e.Gen-1), "total_results", fmt.Sprintf("%s_%s.json", e.NumType, e.Mode.String()))
+		data, err := os.ReadFile(totalResultsPath)
+		if err != nil {
+			fmt.Printf("❌ Could not read prior top results: %v\n", err)
+			return
+		}
+
+		var ranked []struct {
+			Variant      string  `json:"variant"`
+			MeanProgress float64 `json:"mean_progress"`
+		}
+		if err := json.Unmarshal(data, &ranked); err != nil || len(ranked) == 0 {
+			fmt.Printf("❌ Failed to parse top variant from: %s\n", totalResultsPath)
+			return
+		}
+
+		topVariant := ranked[0].Variant
+		modelPath = filepath.Join("models", strconv.Itoa(e.Gen-1),
+			fmt.Sprintf("mutated_%s_%s", e.NumType, e.Mode.String()),
+			fmt.Sprintf("variant_%s.json", topVariant))
 	}
 
 	fmt.Println(modelPath)
@@ -788,7 +811,7 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 
 		}
 		SaveFullResultsIfNotExists(gen)
-		break
+		//break
 	}
 }
 
