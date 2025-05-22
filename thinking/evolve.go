@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	paragon "github.com/OpenFluke/PARAGON"
+	"github.com/OpenFluke/construct"
 	"github.com/OpenFluke/discover"
 )
 
@@ -37,10 +39,14 @@ func (ReplayMode) String() string        { return "Replay" }
 func (DynamicReplayMode) String() string { return "DynamicReplay" }
 
 type Experiment[T Numeric, M ExperimentMode] struct {
-	NumType string
-	Mode    M
-	Config  *ExperimentConfig
-	Gen     int
+	NumType    string
+	Mode       M
+	Config     *ExperimentConfig
+	Gen        int
+	Cubes      []*construct.Cube[T]
+	ServerAddr string
+	AuthPass   string
+	Delimiter  string
 }
 
 type ExperimentRunner interface {
@@ -48,6 +54,9 @@ type ExperimentRunner interface {
 	GenerateVariants()
 	SpawnAgentNames()
 	SpawnAgentsOnPlanets(variantNum int)
+	UnfreezeAgents()
+	//RunAndMonitorAgents()
+	DespawnAgents()
 }
 
 func (e *Experiment[T, M]) SetGeneration(gen int) {
@@ -203,8 +212,30 @@ func (e *Experiment[T, M]) SpawnAgentsOnPlanets(variantNum int) {
 	}
 
 	const planetSpacing = 800.0
-	const spawnRadius = 100.0
+	const spawnRadius = 120.0
 	idx := 0
+
+	var cubes []*construct.Cube[T] // 👈 Hold all spawned cubes
+
+	// Load model for this variant
+	modelPath := filepath.Join(
+		"models",
+		strconv.Itoa(e.Gen),
+		fmt.Sprintf("mutated_%s_%s", e.NumType, e.Mode.String()),
+		fmt.Sprintf("variant_%d.json", variantNum),
+	)
+
+	modelAny, err := paragon.LoadNamedNetworkFromJSONFile(modelPath)
+	if err != nil {
+		fmt.Printf("❌ Failed to load variant model: %v\n", err)
+		return
+	}
+
+	net, ok := modelAny.(*paragon.Network[T])
+	if !ok {
+		fmt.Printf("⚠️ Type assertion failed for model: %T\n", modelAny)
+		return
+	}
 
 	for _, planetStr := range e.Config.Planets {
 		pos, err := parseVec3(planetStr)
@@ -213,29 +244,81 @@ func (e *Experiment[T, M]) SpawnAgentsOnPlanets(variantNum int) {
 			continue
 		}
 
-		// Scale to world coordinates
 		center := []float64{
 			pos.X * planetSpacing,
 			pos.Y * planetSpacing,
 			pos.Z * planetSpacing,
 		}
-
 		positions := discover.FibonacciSphere(spawnsPerPlanet, spawnRadius, center)
 
-		fmt.Printf("🌍 Planet: %s (scaled center: %.2f, %.2f, %.2f)\n", planetStr, center[0], center[1], center[2])
+		fmt.Printf("🌍 Planet: %s (center: %.2f, %.2f, %.2f)\n", planetStr, center[0], center[1], center[2])
 
 		for i := 0; i < spawnsPerPlanet && idx < len(unitNames); i++ {
 			name := unitNames[idx]
 			idx++
 			spawn := positions[i]
-			fmt.Printf("🚀 Spawning %s on planet %s at (%.2f, %.2f, %.2f)\n",
-				name, planetStr, spawn[0], spawn[1], spawn[2])
+
+			cube := &construct.Cube[T]{
+				Name:       name,
+				UnitName:   "AutoUnit",
+				Position:   spawn,
+				Model:      net,
+				ServerAddr: e.ServerAddr,
+				AuthPass:   e.AuthPass,
+				Delimiter:  e.Delimiter,
+				ClampMin:   -20.0,
+				ClampMax:   20.0,
+			}
+
+			if err := cube.Spawn(); err != nil {
+				fmt.Printf("❌ Spawn failed for %s: %v\n", name, err)
+			} else {
+				fmt.Printf("🚀 Spawned %s on %s at (%.2f, %.2f, %.2f)\n", name, planetStr, spawn[0], spawn[1], spawn[2])
+				cubes = append(cubes, cube)
+			}
 		}
 	}
 
 	if idx < len(unitNames) {
 		fmt.Printf("⚠️ %d unit names were unused\n", len(unitNames)-idx)
 	}
+
+	// 🔐 Save references to all cubes
+	e.Cubes = cubes
+}
+
+func (e *Experiment[T, M]) UnfreezeAgents() {
+	if len(e.Cubes) == 0 {
+		fmt.Println("⚠️ No cubes to unfreeze.")
+		return
+	}
+
+	construct := &construct.Construct[T]{
+		ServerAddr: e.ServerAddr,
+		AuthPass:   e.AuthPass,
+		Delimiter:  e.Delimiter,
+	}
+	construct.UnfreezeAll()
+}
+
+func (e *Experiment[T, M]) DespawnAgents() {
+	if len(e.Cubes) == 0 {
+		fmt.Println("⚠️ No cubes to despawn.")
+		return
+	}
+
+	fmt.Printf("💣 Despawning %d agent(s)...\n", len(e.Cubes))
+
+	for _, cube := range e.Cubes {
+		if err := cube.Despawn(); err != nil {
+			fmt.Printf("❌ Failed to despawn %s: %v\n", cube.Name, err)
+		} else {
+			fmt.Printf("✅ Despawned %s\n", cube.Name)
+		}
+	}
+
+	// Optional: clear out the cube references
+	e.Cubes = nil
 }
 
 func ParseExperimentMode(modeStr string) (ExperimentMode, error) {
@@ -254,6 +337,15 @@ func ParseExperimentMode(modeStr string) (ExperimentMode, error) {
 func CreateExperiments(cfg *ExperimentConfig) []ExperimentRunner {
 	var all []ExperimentRunner
 
+	// Default server connection setup
+	host := os.Getenv("GAME_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	serverAddr := host + ":14000"
+	authPass := "my_secure_password"
+	delimiter := "<???DONE???---"
+
 	for _, numType := range cfg.NumericalTypes {
 		for _, modeStr := range cfg.Modes {
 			mode, err := ParseExperimentMode(modeStr)
@@ -264,31 +356,38 @@ func CreateExperiments(cfg *ExperimentConfig) []ExperimentRunner {
 
 			switch numType {
 			case "int":
-				all = append(all, &Experiment[int, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[int, ExperimentMode]{
+					NumType:    numType,
+					Mode:       mode,
+					Config:     cfg,
+					ServerAddr: serverAddr,
+					AuthPass:   authPass,
+					Delimiter:  delimiter,
+				})
 			case "int8":
-				all = append(all, &Experiment[int8, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[int8, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 			case "int16":
-				all = append(all, &Experiment[int16, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[int16, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 			case "int32":
-				all = append(all, &Experiment[int32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[int32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 			case "int64":
-				all = append(all, &Experiment[int64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[int64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 
 			case "uint":
-				all = append(all, &Experiment[uint, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[uint, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 			case "uint8":
-				all = append(all, &Experiment[uint8, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[uint8, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 			case "uint16":
-				all = append(all, &Experiment[uint16, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[uint16, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 			case "uint32":
-				all = append(all, &Experiment[uint32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[uint32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 			case "uint64":
-				all = append(all, &Experiment[uint64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[uint64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 
 			case "float32":
-				all = append(all, &Experiment[float32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[float32, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 			case "float64":
-				all = append(all, &Experiment[float64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg})
+				all = append(all, &Experiment[float64, ExperimentMode]{NumType: numType, Mode: mode, Config: cfg, ServerAddr: serverAddr, AuthPass: authPass, Delimiter: delimiter})
 
 			default:
 				fmt.Printf("⚠️ Unknown numeric type: %s\n", numType)
@@ -309,6 +408,13 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 			exp.SpawnAgentNames()
 			for i := 0; i < cfg.SpectrumSteps; i++ {
 				exp.SpawnAgentsOnPlanets(i)
+				exp.UnfreezeAgents()
+				// 🕒 Allow agents to run for some time before despawning
+				runDuration := 5 * time.Second
+				fmt.Printf("⏳ Letting agents run for %s...\n", runDuration)
+				time.Sleep(runDuration)
+
+				exp.DespawnAgents()
 				//exP.RunExperiment()
 				//exp.Despawn
 			}
