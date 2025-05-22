@@ -47,6 +47,7 @@ type ExperimentRunner interface {
 	SetGeneration(gen int)
 	GenerateVariants()
 	SpawnAgentNames()
+	SpawnAgentsOnPlanets(variantNum int)
 }
 
 func (e *Experiment[T, M]) SetGeneration(gen int) {
@@ -172,6 +173,71 @@ func (e *Experiment[T, M]) SpawnAgentNames() {
 	}
 }
 
+func (e *Experiment[T, M]) SpawnAgentsOnPlanets(variantNum int) {
+	namesPath := filepath.Join(
+		"models",
+		strconv.Itoa(e.Gen),
+		fmt.Sprintf("mutated_%s_%s", e.NumType, e.Mode.String()),
+		"agent_names",
+		fmt.Sprintf("variant_%d.json", variantNum),
+	)
+
+	data, err := os.ReadFile(namesPath)
+	if err != nil {
+		fmt.Printf("❌ Failed to load agent names from %s: %v\n", namesPath, err)
+		return
+	}
+
+	var unitNames []string
+	if err := json.Unmarshal(data, &unitNames); err != nil {
+		fmt.Printf("❌ Failed to parse agent names JSON: %v\n", err)
+		return
+	}
+
+	totalPlanets := len(e.Config.Planets)
+	spawnsPerPlanet := e.Config.EvaluationSpawnsPerPlanet
+	expected := totalPlanets * spawnsPerPlanet
+
+	if len(unitNames) < expected {
+		fmt.Printf("⚠️ Warning: Not enough unit names (%d provided, %d expected)\n", len(unitNames), expected)
+	}
+
+	const planetSpacing = 800.0
+	const spawnRadius = 100.0
+	idx := 0
+
+	for _, planetStr := range e.Config.Planets {
+		pos, err := parseVec3(planetStr)
+		if err != nil {
+			fmt.Printf("⚠️ Invalid planet string %q: %v\n", planetStr, err)
+			continue
+		}
+
+		// Scale to world coordinates
+		center := []float64{
+			pos.X * planetSpacing,
+			pos.Y * planetSpacing,
+			pos.Z * planetSpacing,
+		}
+
+		positions := discover.FibonacciSphere(spawnsPerPlanet, spawnRadius, center)
+
+		fmt.Printf("🌍 Planet: %s (scaled center: %.2f, %.2f, %.2f)\n", planetStr, center[0], center[1], center[2])
+
+		for i := 0; i < spawnsPerPlanet && idx < len(unitNames); i++ {
+			name := unitNames[idx]
+			idx++
+			spawn := positions[i]
+			fmt.Printf("🚀 Spawning %s on planet %s at (%.2f, %.2f, %.2f)\n",
+				name, planetStr, spawn[0], spawn[1], spawn[2])
+		}
+	}
+
+	if idx < len(unitNames) {
+		fmt.Printf("⚠️ %d unit names were unused\n", len(unitNames)-idx)
+	}
+}
+
 func ParseExperimentMode(modeStr string) (ExperimentMode, error) {
 	switch modeStr {
 	case "Standard":
@@ -241,6 +307,11 @@ func RunEpisodeLoop(cfg *ExperimentConfig) {
 			exp.SetGeneration(gen)
 			exp.GenerateVariants()
 			exp.SpawnAgentNames()
+			for i := 0; i < cfg.SpectrumSteps; i++ {
+				exp.SpawnAgentsOnPlanets(i)
+				//exP.RunExperiment()
+				//exp.Despawn
+			}
 		}
 		break
 	}
@@ -254,6 +325,14 @@ func hasAllVariants(dir string, steps int) bool {
 		}
 	}
 	return true
+}
+
+func parseVec3(s string) (Vec3, error) {
+	var v Vec3
+	if _, err := fmt.Sscanf(s, "(%f,%f,%f)", &v.X, &v.Y, &v.Z); err != nil {
+		return v, err
+	}
+	return v, nil
 }
 
 /*
@@ -648,11 +727,5 @@ func extractVariantIndex(name string) int {
 	return n
 }
 
-func parseVec3(s string) (Vec3, error) {
-	var v Vec3
-	if _, err := fmt.Sscanf(s, "(%f,%f,%f)", &v.X, &v.Y, &v.Z); err != nil {
-		return v, err
-	}
-	return v, nil
-}
+
 */
