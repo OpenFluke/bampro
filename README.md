@@ -4,6 +4,45 @@
 
 This project leverages Docker Compose to orchestrate the **Primordia simulation** alongside a custom AI backend for distributed multi-agent reinforcement learning (MARL) experiments.
 
+## Mermaid source code
+
+```mermaid
+flowchart LR
+    %% User
+    User[User/Web Browser]
+
+    %% Backend Service (thinking)
+    subgraph Backend
+        Dash[Web Dashboard & API]
+        Exp[Experiment Runner]
+        Model[Agent & Model Manager]
+    end
+
+    %% Primordia Game Simulation
+    subgraph Primordia
+        Sim[Primordia Simulation]
+    end
+
+    %% Dependencies (Go Libraries)
+    subgraph Dependencies
+        Paragon[PARAGON Neural Network]
+        Construct[CONSTRUCT Agent Control]
+        Discover[DISCOVER World Scan]
+    end
+
+    %% Connections
+    User -- Dashboard/API (8123/9001) --> Dash
+    Dash --> Exp
+    Exp --> Model
+    Model --> Paragon
+    Exp --> Discover
+    Exp --> Construct
+    Construct -. "TCP 14000" .-> Sim
+    Discover -. "TCP 14000" .-> Sim
+
+    Backend <-->|Docker Compose| Primordia
+```
+
 ## GIT CLONE
 
 ```
