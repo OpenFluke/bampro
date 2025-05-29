@@ -10,7 +10,7 @@ services:
       - "9001:9001"
     environment:
       - GAME_HOST=primordia
-    restart: unless-stopped
+    restart: always
 
   primordia:
     build:
@@ -21,4 +21,4 @@ services:
       - "15000:15000/udp" # UDP port for game
       - "16000:16000/tcp" # TCP port for game control
       - "14000:14000/tcp" # TCP for worker/AI integration
-    restart: unless-stopped
+    restart: always
